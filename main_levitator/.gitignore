@@ -1,0 +1,51 @@
+# ===================================== #
+# Visual Studio / MonoDevelop generated #
+# ===================================== #
+x64/
+[Ww]in32/
+Debug/
+.vs/
+*.suo
+ 
+# ============ #
+# OS generated #
+# ============ #
+.DS_Store*
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+ehthumbs.db
+[Tt]humbs.db
+[Dd]esktop.ini
+Corridor/Library/ShaderCache/
+Corridor/Library/metadata/
+
+# ============ #
+# Weicheng Project Specifics #
+AcousticSimulator
+AsierInho_DLL
+AsierInho_DLLV2
+AsierInho_DLLV3
+AsierInho_DLLV3_Active wait
+camsdk_lib
+clientPrograms
+GenerateBoardConfigurationFiles
+GSPAT_RenderingEngine
+GSPAT_Solver
+GSPAT_SolverBEM
+GSPAT_SolverIBP
+GSPAT_SolverNaive
+GSPAT_SolverTS
+GSPAT_SolverV2
+GSPAT_SolverV3
+GSPAT_SolverV4
+Helper
+OpenGLFramework
+OpenGLFrameworkExtensions
+Optitrack
+S2M2
+ScatteringTest/ScatteringTest
+ScatteringTest/TestNewSolvers
+*.dll
+*.lib

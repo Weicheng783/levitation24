@@ -1,0 +1,97 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\Helper\VisualizePlane.cpp">
+      <Filter>Helpler</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Helper\ReflectionSurface.cpp">
+      <Filter>Helpler</Filter>
+    </ClCompile>
+    <ClCompile Include="ScatteringApplicationMain.cpp" />
+    <ClCompile Include="SpeedTest.cpp" />
+    <ClCompile Include="..\S2M2\cpp\AgentPath.cpp">
+      <Filter>PathPlanner</Filter>
+    </ClCompile>
+    <ClCompile Include="..\S2M2\cpp\PathPlanner.cpp">
+      <Filter>PathPlanner</Filter>
+    </ClCompile>
+    <ClCompile Include="..\clientPrograms\Applications\LeviPropRecognizer\BeadDetector.cpp">
+      <Filter>Detector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\clientPrograms\Applications\LeviPropRecognizer\DeviceEnumerator.cpp">
+      <Filter>Detector</Filter>
+    </ClCompile>
+    <ClCompile Include="SpeedTest_WithoutDetector.cpp" />
+    <ClCompile Include="SpeedTest_WithoutDetector_NEW.cpp" />
+    <ClCompile Include="PlanningIntegration_Evaluation_withoutBD.cpp" />
+    <ClCompile Include="PlanningIntegration_clean.cpp" />
+    <ClCompile Include="..\OptiTrack\OptiTrack.cpp">
+      <Filter>OptiTrack</Filter>
+    </ClCompile>
+    <ClCompile Include="PurePathPlanner_clean.cpp" />
+    <ClCompile Include="weicheng.cpp" />
+    <ClCompile Include="PlanningIntegration_EvaluationBD.cpp" />
+    <ClCompile Include="PlanningIntegration_EvaluationBDPrev.cpp" />
+    <ClCompile Include="PlanningIntegration_EvaluationBDv2.cpp" />
+    <ClCompile Include="weicheng_exp_240724.cpp" />
+    <ClCompile Include="weicheng_0806_auto.cpp" />
+    <ClCompile Include="weicheng_bn.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Helpler">
+      <UniqueIdentifier>{b4c639b1-97b7-4c21-8047-5c7d7dff8686}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="PathPlanner">
+      <UniqueIdentifier>{d6336320-d1f8-4c69-92de-6ca27fae2cf3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Detector">
+      <UniqueIdentifier>{9776bf46-37f7-432e-a57f-12943a1b0697}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="OptiTrack">
+      <UniqueIdentifier>{d30e78ba-48a6-4836-86a1-733b004d21c6}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\Helper\VisualizePlane.h">
+      <Filter>Helpler</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Helper\ReflectionSurface.h">
+      <Filter>Helpler</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Helper\BEMSolver.h">
+      <Filter>Helpler</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Helper\CuSolverUtils.h">
+      <Filter>Helpler</Filter>
+    </ClInclude>
+    <ClInclude Include="..\S2M2\cpp\pyhelper.h">
+      <Filter>PathPlanner</Filter>
+    </ClInclude>
+    <ClInclude Include="..\S2M2\cpp\AgentPath.h">
+      <Filter>PathPlanner</Filter>
+    </ClInclude>
+    <ClInclude Include="..\S2M2\cpp\PathPlanner.h">
+      <Filter>PathPlanner</Filter>
+    </ClInclude>
+    <ClInclude Include="..\clientPrograms\Applications\LeviPropRecognizer\BeadDetector.h">
+      <Filter>Detector</Filter>
+    </ClInclude>
+    <ClInclude Include="..\clientPrograms\Applications\LeviPropRecognizer\DeviceEnumerator.h">
+      <Filter>Detector</Filter>
+    </ClInclude>
+    <ClInclude Include="GenerateSpeedTestPaths.h" />
+    <ClInclude Include="..\OptiTrack\IPredictor.h">
+      <Filter>OptiTrack</Filter>
+    </ClInclude>
+    <ClInclude Include="..\OptiTrack\OptiTrack.h">
+      <Filter>OptiTrack</Filter>
+    </ClInclude>
+    <ClInclude Include="..\OptiTrack\TrackingTunningVariables.h">
+      <Filter>OptiTrack</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="TestNewSolvers.rc" />
+  </ItemGroup>
+</Project>
