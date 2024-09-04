@@ -1,3 +1,5 @@
+//The Original Copy of Code File for EXPERIMENT 1: P4/6 random/crossing initialization test
+
 #include <AsierInho_V2.h>
 #include <AsierInho.h>
 #include <GSPAT_SolverNaive.h>
@@ -301,7 +303,7 @@ void deleteFile(const std::string& filename) {
 // 9 Switch transducer off.
 enum Algorithms { GS_PAT = 0, TEMPORAL, NAIVE, IBP };
 Algorithms algorithmUsed = GS_PAT;
-int numAgents = 4;
+int numAgents = 6;
 std::string numAgentss = "x";
 int roundNum = 1;
 std::string roundNumm = "1";
@@ -319,14 +321,14 @@ bool manualDataCollectionMode = true;
 bool manualSpeedReduction = false;
 bool manualSpeedIncrease = false;
 bool noCaptureMode = false;
-bool noOptitrackMode = true;
+bool noOptitrackMode = false;
 bool path1plannerFailed = false;
 
 int totalRecordings = 1;
-float upper_limit = 1.00f; // m/s
+float upper_limit = 0.10f; // m/s
 float lower_limit = 0.01f;
-float current_speedo = lower_limit + (upper_limit - lower_limit) / 2;
-//float current_speedo = lower_limit;
+//float current_speedo = lower_limit + (upper_limit - lower_limit) / 2;
+float current_speedo = lower_limit;
 float stepping = 0.02f;
 int doing_times = 5; // each run 5 times at least
 int current_counter = 0;
@@ -439,7 +441,7 @@ bool simpleAnalysisFullMode = true;
 bool mlpAnalysis = false;
 
 bool guiManageMode = false;
-bool developmentMode = true; // This disables/bypasses all functionality of the levitator for testing GUI
+bool developmentMode = false; // This disables/bypasses all functionality of the levitator for testing GUI
 
 bool usePath1 = true; // Switch between path planners (true use S2M2, false use CBS).
 
@@ -876,7 +878,7 @@ void* solutionWriterThread(void* arg) {
 		getStartEndPos_StableLev_62();
 	}
 
-	if (testPattern != "random" && testPattern != "exp4") {
+	if (testPattern != "random") {
 		existingPath = setPaths(planner, initialPositions, targetPositions, size, particles_speed, false, true);
 		initialPositions.clear();
 		targetPositions.clear();
@@ -915,10 +917,10 @@ void* solutionWriterThread(void* arg) {
 	std::string argument2 = roundNumm;
 	std::string argument3 = testPattern;
 	std::string argument4 = std::to_string(current_speedo);
-	//std::string argument5 = "full";
+	std::string argument5 = "full";
 
 	// Construct the full command
-	std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4 + " ";
+	std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4 + " " + argument5;
 
 	// Call the executable and wait for it to finish
 	int result = std::system(command.c_str());
@@ -1124,7 +1126,7 @@ void* solutionWriterThread(void* arg) {
 				}
 
 				fio.close();
-				
+
 				std::vector<AgentPath> paths1;
 				std::vector<AgentPath> paths1_alt;
 				if (usePath1) {
@@ -1392,10 +1394,10 @@ void* solutionWriterThread(void* arg) {
 			std::string argument2 = roundNumm;
 			std::string argument3 = testPattern;
 			std::string argument4 = std::to_string(particles_speed[0]);
-			//std::string argument5 = "full";
+			std::string argument5 = "full";
 
 			// Construct the full command
-			std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4;
+			std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4 + " " + argument5;
 
 			// Call the executable and wait for it to finish
 			int result = std::system(command.c_str());
@@ -1447,10 +1449,10 @@ void* solutionWriterThread(void* arg) {
 			std::string argument2 = roundNumm;
 			std::string argument3 = testPattern;
 			std::string argument4 = std::to_string(particles_speed[0]);
-			//std::string argument5 = "full";
+			std::string argument5 = "full";
 
 			// Construct the full command
-			std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4;
+			std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4 + " " + argument5;
 
 			// Call the executable and wait for it to finish
 			int result = std::system(command.c_str());
@@ -1591,10 +1593,10 @@ void* solutionWriterThread(void* arg) {
 				std::string argument2 = roundNumm;
 				std::string argument3 = testPattern;
 				std::string argument4 = std::to_string(particles_speed[0]);
-				//std::string argument5 = "full";
+				std::string argument5 = "full";
 
 				// Construct the full command
-				std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4;
+				std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4 + " " + argument5;
 
 				// Call the executable and wait for it to finish
 				int result = std::system(command.c_str());
@@ -1736,10 +1738,10 @@ void* solutionWriterThread(void* arg) {
 				std::string argument2 = roundNumm;
 				std::string argument3 = testPattern;
 				std::string argument4 = std::to_string(particles_speed[0]);
-				//std::string argument5 = "full";
+				std::string argument5 = "full";
 
 				// Construct the full command
-				std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4;
+				std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4 + " " + argument5;
 
 				// Call the executable and wait for it to finish
 				int result = std::system(command.c_str());
@@ -1882,10 +1884,10 @@ void* solutionWriterThread(void* arg) {
 				std::string argument2 = roundNumm;
 				std::string argument3 = testPattern;
 				std::string argument4 = std::to_string(particles_speed[0]);
-				//std::string argument5 = "full";
+				std::string argument5 = "full";
 
 				// Construct the full command
-				std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4;
+				std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4 + " " + argument5;
 
 				// Call the executable and wait for it to finish
 				int result = std::system(command.c_str());
@@ -2093,7 +2095,7 @@ void* solutionWriterThread(void* arg) {
 
 					paths1_alt = PathPlanner::readAgentPaths(csvFilePath);
 				}
-				
+
 				if (paths1.size() > 0 && usePath1 || paths1_alt.size() > 0 && !usePath1) {
 					if (usePath1) {
 						PathPlanner::saveAgentPaths(filePaths[1], paths1);
@@ -2154,10 +2156,10 @@ void* solutionWriterThread(void* arg) {
 					std::string argument2 = roundNumm;
 					std::string argument3 = testPattern;
 					std::string argument4 = std::to_string(current_speedo);
-					//std::string argument5 = "alt";
+					std::string argument5 = "alt";
 
 					// Construct the full command
-					std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4;
+					std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4 + " " + argument5;
 
 					// Call the executable and wait for it to finish
 					int result = std::system(command.c_str());
@@ -2348,10 +2350,10 @@ void* solutionWriterThread(void* arg) {
 			std::string argument2 = roundNumm;
 			std::string argument3 = testPattern;
 			std::string argument4 = std::to_string(particles_speed[0]);
-			//std::string argument5 = "full";
+			std::string argument5 = "full";
 
 			// Construct the full command
-			std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4;
+			std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4 + " " + argument5;
 
 			// Call the executable and wait for it to finish
 			int result = std::system(command.c_str());
@@ -2406,10 +2408,10 @@ void* solutionWriterThread(void* arg) {
 			std::string argument2 = roundNumm;
 			std::string argument3 = testPattern;
 			std::string argument4 = std::to_string(particles_speed[0]);
-			//std::string argument5 = "full";
+			std::string argument5 = "full";
 
 			// Construct the full command
-			std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4;
+			std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4 + " " + argument5;
 
 			// Call the executable and wait for it to finish
 			int result = std::system(command.c_str());
@@ -3235,7 +3237,7 @@ void main() {
 	particles_pickup_speed.clear();
 	for (int i = 0; i < numAgents; i++) {
 		particles_speed.push_back(current_speedo);
-		particles_pickup_speed.push_back(0.02f);
+		particles_pickup_speed.push_back(current_speedo);
 		startSteps.push_back(0);
 		endSteps.push_back(29999);
 		ampOffsets.push_back(0);
@@ -3437,7 +3439,7 @@ void main() {
 		default:
 			break;
 		}
-		
+
 		if (instruction_number != 0) {
 			instruction_number = 0;
 		}
@@ -3497,14 +3499,14 @@ void main() {
 				mlpAnalysis = true;
 				break;
 			case 'l':
-				//if (manualMode) {
+				if (manualMode) {
 					binarySearchHigherLower = true;
-				//}
+				}
 				break;
 			case 'h':
-				//if (manualMode) {
+				if (manualMode) {
 					binarySearchLowerUpper = true;
-				//}
+				}
 				break;
 			case 'i':
 				if (!noOptitrackMode) {

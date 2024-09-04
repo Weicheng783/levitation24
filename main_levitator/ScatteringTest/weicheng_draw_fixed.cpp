@@ -22,15 +22,15 @@
 // 9 Switch transducer off.
 enum Algorithms { GS_PAT = 0, TEMPORAL, NAIVE, IBP };
 Algorithms algorithmUsed = GS_PAT;
-int numAgents = 1;
-std::string numAgentss = "1";
+int numAgents = 8;
+std::string numAgentss = "8";
 //int roundNum = 4;
 std::string roundNumm = "1";
 std::string algorithmUsedd = "gs-pat";
 std::string testPattern = "drawing";
 std::string systemVersion = "240702";
-float testing_velocity = 0.01f;					// maximum velocity in meter/second
-std::string testing_velocityy = "0.01";
+float testing_velocity = 0.05f;					// maximum velocity in meter/second
+std::string testing_velocityy = "0.05";
 float settedStageHeight = 0.033f;
 bool initializeCamera = true; // Whether to perform camera calibration
 

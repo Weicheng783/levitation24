@@ -25,212 +25,6 @@
 
 namespace fs = std::filesystem;
 
-struct Waypoint {
-	double time;
-	double x, y, z;
-
-	// Constructor for Waypoint
-	Waypoint(double t, double xCoord, double yCoord, double zCoord)
-		: time(t), x(xCoord), y(yCoord), z(zCoord) {}
-};
-
-// Define the Agent struct
-struct Agent {
-	int id;  // Agent ID
-	std::vector<Waypoint> waypoints;  // A vector of waypoints
-
-	// Constructor for Agent
-	Agent(int agentId, const std::vector<Waypoint>& wps)
-		: id(agentId), waypoints(wps) {}
-};
-
-struct WaypointAlt {
-	std::string pointLabel;
-	double time;
-	double x, y, z;
-};
-
-struct AgentAlt {
-	int id;
-	std::vector<std::vector<std::string>> data; // to store raw data for easy processing
-	std::vector<Waypoint> waypoints;
-};
-
-void generateWaypoints(Agent& agent, double speed, double targetZ) {
-	double initialZ = agent.waypoints.front().z;
-	double distance = targetZ - initialZ;
-	double time = 0.0;
-	double deltaTime = 1; // Adjust this value to control waypoint granularity
-
-	agent.waypoints.push_back({ time + deltaTime, agent.waypoints.back().x, agent.waypoints.back().y, targetZ });
-
-	// Depending on the direction, use a different stopping condition
-	//while ((distance > 0 && agent.waypoints.back().z < targetZ) ||
-	//	(distance < 0 && agent.waypoints.back().z > targetZ)) {
-	//	time += deltaTime;
-	//	double newZ = agent.waypoints.back().z + speed * deltaTime;
-
-	//	// Ensure we don't overshoot the targetZ
-	//	if ((distance > 0 && newZ >= targetZ) || (distance < 0 && newZ <= targetZ)) {
-	//		newZ = targetZ;  // Correct to the exact targetZ
-	//		agent.waypoints.push_back({ time, agent.waypoints.back().x, agent.waypoints.back().y, newZ });
-	//		break; // Stop loop since we've reached the targetZ
-	//	}
-
-	//	agent.waypoints.push_back({ time, agent.waypoints.back().x, agent.waypoints.back().y, newZ });
-	//}
-}
-
-
-//void generateWaypoints(Agent& agent, double speed, double targetZ) {
-//	double initialZ = agent.waypoints.front().z;
-//	double distance = targetZ - initialZ;
-//	double time = 0.0;
-//	double deltaTime = 0.1; // Adjust this value to control waypoint granularity
-//
-//	while (distance > 0 ? agent.waypoints.back().z < targetZ : agent.waypoints.back().z > targetZ) {
-//		time += deltaTime;
-//		double newZ = agent.waypoints.back().z + speed * deltaTime;
-//		if ((distance > 0 && newZ > targetZ) || (distance < 0 && newZ < targetZ)) {
-//			newZ = targetZ;  // Ensure we don't overshoot
-//		}
-//		agent.waypoints.push_back({ time, agent.waypoints.back().x, agent.waypoints.back().y, newZ });
-//	}
-//}
-
-//void generateWaypoints(Agent& agent, double speed, double targetZ) {
-//	double initialZ = agent.waypoints.front().z;
-//	double distance = targetZ - initialZ;
-//
-//	// Calculate the total time needed to reach the target Z
-//	double totalTime = std::abs(distance) / speed;
-//
-//	// Calculate the time interval between waypoints
-//	double deltaTime = totalTime / 9.0; // 9 intervals for 10 waypoints
-//
-//	// Generate 10 waypoints
-//	for (int i = 0; i < 10; ++i) {
-//		double time = i * deltaTime;
-//		double newZ = initialZ + distance * (time / totalTime);
-//		// Ensure we don't overshoot
-//		if ((distance > 0 && newZ > targetZ) || (distance < 0 && newZ < targetZ)) {
-//			newZ = targetZ;
-//		}
-//		agent.waypoints.push_back({ time, agent.waypoints.front().x, agent.waypoints.front().y, newZ });
-//	}
-//}
-
-
-std::vector<std::vector<std::string>> readCSVCustom(const std::string& filePath) {
-	std::ifstream file(filePath);
-	std::string line;
-	std::vector<std::vector<std::string>> data;
-
-	while (std::getline(file, line)) {
-		std::vector<std::string> row;
-		std::stringstream ss(line);
-		std::string cell;
-
-		while (std::getline(ss, cell, ',')) {
-			row.push_back(cell);
-		}
-		data.push_back(row);
-	}
-	return data;
-}
-
-void mergeCSVFiles(const std::vector<std::string>& filePaths, const std::string& outputFilePath) {
-	std::vector<std::vector<std::vector<std::string>>> mergedData;
-
-	for (const auto& filePath : filePaths) {
-		auto data = readCSVCustom(filePath);
-
-		std::vector<int> agentIndices;
-		for (size_t i = 0; i < data.size(); ++i) {
-			if (data[i][0].find("Agent ID") != std::string::npos) {
-				agentIndices.push_back(i);
-			}
-		}
-
-		for (size_t idx = 0; idx < agentIndices.size(); ++idx) {
-			int start = agentIndices[idx];
-			int end = (idx + 1 < agentIndices.size()) ? agentIndices[idx + 1] : data.size();
-			auto agentData = std::vector<std::vector<std::string>>(data.begin() + start, data.begin() + end);
-
-			if (mergedData.size() <= idx) {
-				mergedData.push_back(agentData);
-			}
-			else {
-				auto& prevAgentData = mergedData[idx];
-				auto prevLastPoint = prevAgentData.back();
-				double timeOffset = std::stod(prevLastPoint[1]);
-
-				int waypointStartIdx = 2;
-				std::vector<std::vector<std::string>> newPoints;
-
-				for (size_t i = waypointStartIdx; i < agentData.size(); ++i) {
-					auto row = agentData[i];
-					if (row[0].find("Point-") != std::string::npos) {
-						int newPointNumber = prevAgentData.size() - waypointStartIdx + (i - waypointStartIdx);
-						row[0] = "Point-" + std::to_string(newPointNumber);
-						row[1] = std::to_string(std::stod(row[1]) + timeOffset);
-						newPoints.push_back(row);
-					}
-				}
-
-				int newWaypointsCount = prevAgentData.size() - waypointStartIdx + newPoints.size();
-				prevAgentData[1][1] = std::to_string(newWaypointsCount);
-				prevAgentData.insert(prevAgentData.end(), newPoints.begin(), newPoints.end());
-			}
-		}
-	}
-
-	std::ofstream outFile(outputFilePath);
-	if (!outFile) {
-		std::cerr << "Unable to open file: " << outputFilePath << std::endl;
-		return;
-	}
-
-	for (const auto& agentData : mergedData) {
-		for (const auto& row : agentData) {
-			for (size_t i = 0; i < row.size(); ++i) {
-				outFile << row[i];
-				if (i < row.size() - 1) {
-					outFile << ",";
-				}
-			}
-			outFile << "\n";
-		}
-	}
-
-	outFile.close();
-}
-
-
-void writeOutputToFile(const std::string& filePath, const std::vector<Agent>& agents) {
-	std::ofstream outFile(filePath);
-	if (!outFile) {
-		std::cerr << "Unable to open file: " << filePath << std::endl;
-		return;
-	}
-
-	for (const auto& agent : agents) {
-		outFile << "Agent ID," << agent.id << std::endl;
-		outFile << "Number of waypoints," << agent.waypoints.size() << std::endl;
-
-		for (size_t i = 0; i < agent.waypoints.size(); ++i) {
-			outFile << "Point-" << i << ","
-				<< agent.waypoints[i].time << ","
-				<< std::fixed << std::setprecision(6)
-				<< agent.waypoints[i].x << ","
-				<< agent.waypoints[i].y << ","
-				<< agent.waypoints[i].z << std::endl;
-		}
-	}
-
-	outFile.close();
-}
-
 void create_directories_if_not_exist(const std::string& path) {
 	fs::path dir(path);
 
@@ -245,11 +39,6 @@ void create_directories_if_not_exist(const std::string& path) {
 	else {
 		std::cout << "Directory already exists: " << path << std::endl;
 	}
-}
-
-bool exists_test(const std::string& name) {
-	std::ifstream f(name.c_str());
-	return f.good();
 }
 
 bool FileExists(const std::string& path) {
@@ -283,19 +72,6 @@ bool CopyFileFromAToB(const std::string& source, const std::string& destination)
 	}
 }
 
-bool isFileEmpty(std::ifstream& file) {
-	return file.peek() == std::ifstream::traits_type::eof();
-}
-
-void deleteFile(const std::string& filename) {
-	if (std::remove(filename.c_str()) == 0) {
-		std::cout << "File deleted successfully." << std::endl;
-	}
-	else {
-		std::cerr << "Error deleting the file." << std::endl;
-	}
-}
-
 // define meta information
 // Setting Ground Plane: 0, Testing Target: 0 then 3.
 // 9 Switch transducer off.
@@ -306,41 +82,33 @@ std::string numAgentss = "x";
 int roundNum = 1;
 std::string roundNumm = "1";
 std::string algorithmUsedd = "gs-pat";
-std::string testPattern = "random";
+std::string testPattern = "crossing";
 std::string systemVersion = "240702";
 float testing_velocity = 1.00f;					// maximum velocity in meter/second
 std::string testing_velocityy = "1.00";
-float settedStageHeight = 0.0335f; // 0.033f
-bool initializeCamera = true; // Whether to perform camera calibration (this reads from a file)
+float settedStageHeight = 0.033f; // 0.033f
+bool initializeCamera = false; // Whether to perform camera calibration
 std::string nameIntegration = "";
 bool manualMode = false;
-bool manualInputMode = true;
-bool manualDataCollectionMode = true;
+bool manualInputMode = false;
+bool manualDataCollectionMode = false;
 bool manualSpeedReduction = false;
 bool manualSpeedIncrease = false;
 bool noCaptureMode = false;
 bool noOptitrackMode = true;
-bool path1plannerFailed = false;
 
 int totalRecordings = 1;
 float upper_limit = 1.00f; // m/s
 float lower_limit = 0.01f;
 float current_speedo = lower_limit + (upper_limit - lower_limit) / 2;
-//float current_speedo = lower_limit;
 float stepping = 0.02f;
 int doing_times = 5; // each run 5 times at least
 int current_counter = 0;
 std::vector<float> particles_speed;
 std::vector<float> particles_pickup_speed;
-std::string filenamea = "";
-std::ofstream outFilea;
-std::vector<glm::vec3> detectedPositions;
 
-std::string fullPathPre = "C:/Users/weicheng/Desktop/formal_dataset/" + systemVersion + "/" + std::to_string(numAgents) + "/" + testPattern + "/" + algorithmUsedd + "/" + std::to_string(current_speedo) + "/" + roundNumm + "/";
+std::string fullPathPre = "C:/Users/weicheng/Desktop/formal_dataset/" + systemVersion + "/" + numAgentss + "/" + testPattern + "/" + algorithmUsedd + "/" + testing_velocityy + "/" + roundNumm + "/";
 std::string auxiliaryName = "";
-std::string feedback_txt = "C:/Users/weicheng/Desktop/ServerSampler/bin/feedback.txt";
-std::string amp_txt = "C:/Users/weicheng/Desktop/ServerSampler/bin/curr_amp.txt";
-std::string velo_txt = "C:/Users/weicheng/Desktop/ServerSampler/bin/velo_amp.txt";
 
 std::string tranducerPhaseFile = fullPathPre + "sim_output_transducerPhase.csv";
 std::ofstream PositionFile;   // to record the tracking position of the particles
@@ -406,7 +174,6 @@ bool runningFromFiles = false;
 
 bool turnTransducersOff = true;						// transducers can be off before detecting the particle positions
 bool pickingup = false;
-bool pickingup_2d = false;
 bool pickingup_disturbance = false;
 bool startTesting = false;
 bool startPlanningControl = false;
@@ -416,7 +183,6 @@ bool goToStartPos = false;
 bool goToTargetPos = false;
 
 bool goToTestingPos = false;
-bool goToTestingPos_2d = false;
 bool testLowVelocity = false;
 bool testMediumVelocity = false;
 bool testHighVelocity = false;
@@ -434,14 +200,6 @@ bool firstTimeToLog = true;
 bool bnAnalysis = false;
 bool bnAnalysisFullMode = true;
 bool lstmAnalysis = false;
-bool simpleAnalysis = false;
-bool simpleAnalysisFullMode = true;
-bool mlpAnalysis = false;
-
-bool guiManageMode = false;
-bool developmentMode = true; // This disables/bypasses all functionality of the levitator for testing GUI
-
-bool usePath1 = true; // Switch between path planners (true use S2M2, false use CBS).
 
 std::string currentTime = "";
 std::string integratedDir = "";
@@ -470,17 +228,6 @@ bool FileExists(const std::string& path);
 bool MoveFileFromAToB(const std::string& source, const std::string& destination);
 bool CopyFileFromAToB(const std::string& source, const std::string& destination);
 void checkAndReset();
-void getStartEndPos_Random(int num_Agents);
-bool exists_test(const std::string& name);
-bool isFileEmpty(std::ifstream& file);
-void deleteFile(const std::string& filename);
-void initializeCameraSetting();
-void writeSystemInfoFile();
-void* performSystemInfoWriting(void* arg);
-void generateWaypoints(Agent& agent, double speed, double targetZ);
-void writeOutputToFile(const std::string& filePath, const std::vector<Agent>& agents);
-std::vector<std::vector<std::string>> readCSVCustom(const std::string& filePath);
-void mergeCSVFiles(const std::vector<std::string>& filePaths, const std::string& outputFilePath);
 
 void print(const char* str);
 
@@ -488,6 +235,13 @@ void* solutionReaderThread(void* arg) {
 	GSPAT::Solver* solver = ((GSPAT::Solver*)arg);
 
 	while (running) {
+		//0.0 Check if we are using the file to read the phases
+		//pthread_mutex_lock(&mtx_running_from_file);
+		//while (runningFromFiles) {
+		//	//pthread_cond_wait(&controlVal_running_from_file, &mtx_running_from_file);  // wait until we are not running from files
+		//}
+		//pthread_mutex_unlock(&mtx_running_from_file);
+
 		//0. Check the Queue:
 		pthread_mutex_lock(&mutex_solution_queue);
 		while (solutions.size() == 0) {
@@ -506,83 +260,16 @@ void* solutionReaderThread(void* arg) {
 			pthread_mutex_unlock(&mutex_solution_queue);
 			// read the final phases and discretise. 
 			unsigned char* finalMessages = NULL;
-			if (!developmentMode) {
-				curSolution->finalMessages(&finalMessages);
-				for (int g = 0; g < numGeometries; g++) { // only when we want to change the amplitudes of the transducers
-					memset(&finalMessages[g * 512 + 256], amplitudeDisc, 256);
-					memset(&finalMessages[(g + numGeometries) * 512 + 256], amplitudeDisc, 256);
-				}
-				updateGeometries(finalMessages, numGeometries, transducerOffSignal);
-				solver->releaseSolution(curSolution);
+			curSolution->finalMessages(&finalMessages);
+			for (int g = 0; g < numGeometries; g++) { // only when we want to change the amplitudes of the transducers
+				memset(&finalMessages[g * 512 + 256], amplitudeDisc, 256);
+				memset(&finalMessages[(g + numGeometries) * 512 + 256], amplitudeDisc, 256);
 			}
+			updateGeometries(finalMessages, numGeometries, transducerOffSignal);
+			solver->releaseSolution(curSolution);
 		}
 	}
 	return NULL;
-}
-
-void initializeCameraSetting() {
-	std::ifstream file("C:/Users/weicheng/Desktop/ServerSampler/bin/cameraInitialize.txt");
-
-	if (file.is_open()) {
-		std::string firstLine;
-		if (std::getline(file, firstLine)) {
-			if (firstLine == "true") {
-				initializeCamera = true;
-			}
-			else if (firstLine == "false") {
-				initializeCamera = false;
-			}
-			else {
-				initializeCamera = false; // Invalid content, set to false
-			}
-		}
-		else {
-			initializeCamera = false; // No content in the file, set to false
-		}
-		file.close();
-	}
-	else {
-		initializeCamera = false; // File doesn't exist, set to false
-	}
-}
-
-void writeSystemInfoFile()
-{
-	filenamea = "C:/Users/weicheng/Desktop/ServerSampler/bin/system_info.txt";
-	outFilea.open(filenamea);
-	if (outFilea.is_open()) {
-		char buffer[16];
-		std::time_t now = std::time(nullptr);
-		std::strftime(buffer, sizeof(buffer), "%y%m%d_%H%M%S", std::localtime(&now));
-		outFilea << buffer << std::endl;
-		outFilea << "guiManageMode:" << guiManageMode << std::endl;
-		outFilea << "noOptitrackMode:" << noOptitrackMode << std::endl;
-		outFilea << "noCaptureMode:" << noCaptureMode << std::endl;
-		outFilea << "manualDataCollectionMode:" << manualDataCollectionMode << std::endl;
-		outFilea << "manualInputMode:" << manualInputMode << std::endl;
-		outFilea << "manualMode:" << manualMode << std::endl;
-		outFilea << "current_velocity:" << current_speedo << std::endl;
-		outFilea << "current_amplitude:" << 16000 + ampOffsets[0] << std::endl;
-		outFilea << "numAgents:" << numAgents << std::endl;
-		outFilea << "testPattern:" << testPattern << std::endl;
-		outFilea << "round:" << roundNumm << std::endl;
-		outFilea << "integratedDir:" << integratedDir << std::endl;
-		outFilea << "fullPathPre:" << fullPathPre << std::endl;
-		outFilea << "systemVersion:" << systemVersion << std::endl;
-		outFilea << "solver_algorithm:" << algorithmUsedd << std::endl;
-		outFilea << "developmentMode:" << developmentMode << std::endl;
-		outFilea << "totalRecordings:" << totalRecordings << std::endl;
-		outFilea << "lower_bound:" << lower_limit << std::endl;
-		outFilea << "upper_bound:" << upper_limit << std::endl;
-		outFilea.close();
-		//std::cout << "System state file written successfully." << std::endl;
-		std::ofstream(feedback_txt) << "0";
-	}
-	else {
-		std::ofstream(feedback_txt) << "2";
-		std::cerr << "Error: Could not open the file for writing." << std::endl;
-	}
-	outFilea.close();
 }
 
 void getStartEndPos_Crossing_four()
@@ -602,23 +289,6 @@ void getStartEndPos_Crossing_four()
 	targetPositions.push_back(glm::vec3(-0.04f, -0.04f, 0.12f));
 	targetPositions.push_back(glm::vec3(0.04f, -0.04f, 0.12f));
 	targetPositions.push_back(glm::vec3(-0.04f, 0.04f, 0.12f));
-}
-
-void getStartEndPos_Random(int num_Agents)
-{
-	initialPositions.clear();
-	targetPositions.clear();
-
-	auto a = getRandomPositions(num_Agents);
-	// n particles crossing each other from a height
-	for (int i = 0; i < num_Agents; i++) {
-		initialPositions.push_back(a[i]);
-	}
-
-	a = getRandomPositions(num_Agents);
-	for (int i = 0; i < num_Agents; i++) {
-		targetPositions.push_back(a[i]);
-	}
 }
 
 void getStartEndPos_Crossing_six()
@@ -725,8 +395,6 @@ void* solutionWriterThread(void* arg) {
 	float O[] = { 0, 0, centreHeight, 1 };
 	float radius = 0.035f;
 
-	initializeCameraSetting();
-
 	// 2. Initialize the bead detector
 	// TODO: CHANGE THIS 0.0355
 	float stageHeight = settedStageHeight; // the height of the stage (work great to set a little bit above the surface)   0.0355f; 0.031f
@@ -807,7 +475,6 @@ void* solutionWriterThread(void* arg) {
 	//	paths[i].addWayPoint(0, initialPositions[i].x, initialPositions[i].y, initialPositions[i].z);
 	//	std::cout << existingPath[i].getPosition(0).x << ", " << existingPath[i].getPosition(0).y << ", " << existingPath[i].getPosition(0).z << std::endl;
 	//}
-
 	if (particles_speed.size() == 0) {
 		for (int i = 0; i < numAgents; i++) {
 			particles_speed.push_back(current_speedo);
@@ -815,91 +482,36 @@ void* solutionWriterThread(void* arg) {
 	}
 
 	// Instead, we use our test positions
-	//getStartEndPos_Crossing_four();
-	//getStartEndPos_Pushing_inside();
+	getStartEndPos_Crossing_four();
+	getStartEndPos_Pushing_inside();
 	//getStartEndPos_StableLev_62();
 	//getStartEndPos_Crossing_six();
 	//getStartEndPos_Crossing_eight();
 	//getStartEndPos_StableLev_62_plain_s1();
-
-	if (testPattern == "random" || !(testPattern == "crossing" || testPattern == "stablelev" || testPattern == "stacking")) {
-		std::string filename = fullPathPre + "pathFile_exp.csv";
-		std::cout << "****** FILE EXISTENCE: " << filename << " " << FileExists(filename) << " ******" << std::endl;
-		if (FileExists(filename)) {
-			std::cout << "Path file exists, do not overwrite and use this file." << std::endl;
-			//Get the initial positions from existing paths
-			existingPathFile << fullPathPre << "pathFile_exp.csv";
-			existingPath = planner.readAgentPaths(existingPathFile.str());
-			initialPositions.clear();
-			targetPositions.clear();
-			for (int i = 0; i < existingPath.size(); i++)
-			{
-				initialPositions.push_back(existingPath[i].getPosition(0));
-				targetPositions.push_back(existingPath[i].getPosition(existingPath[i].getFinalTime()));
-				paths[i].addWayPoint(0, initialPositions[i].x, initialPositions[i].y, initialPositions[i].z);
-				std::cout << existingPath[i].getPosition(0).x << ", " << existingPath[i].getPosition(0).y << ", " << existingPath[i].getPosition(0).z << std::endl;
-			}
-		}
-		else {
-			while (existingPath.empty()) {
-				std::cout << "Path is still empty (caused by no plan or infeasible), regenerating random points, please wait patiently..." << std::endl;
-
-				getStartEndPos_Random(numAgents);
-				std::cout << "Path file does not exist, generate new path now..." << std::endl;
-				existingPath = setPaths(planner, initialPositions, targetPositions, size, particles_speed, false, true);
-				initialPositions.clear();
-				targetPositions.clear();
-				for (int i = 0; i < existingPath.size(); i++)
-				{
-					initialPositions.push_back(existingPath[i].getPosition(0));
-					targetPositions.push_back(existingPath[i].getPosition(existingPath[i].getFinalTime()));
-					paths[i].addWayPoint(0, initialPositions[i].x, initialPositions[i].y, initialPositions[i].z);
-					std::cout << existingPath[i].getPosition(0).x << ", " << existingPath[i].getPosition(0).y << ", " << existingPath[i].getPosition(0).z << std::endl;
-				}
-				create_directories_if_not_exist("C:/Users/weicheng/Desktop/formal_dataset/" + systemVersion + "/" + std::to_string(numAgents) + "/" + testPattern + "/" + algorithmUsedd + "/" + std::to_string(particles_speed[0]) + "/" + roundNumm);
-				savedPathFile << "C:/Users/weicheng/Desktop/formal_dataset/" + systemVersion + "/" + std::to_string(numAgents) + "/" + testPattern + "/" + algorithmUsedd + "/" + std::to_string(particles_speed[0]) + "/" + roundNumm + "/" + "pathFile_exp.csv";
-				PathPlanner::saveAgentPaths(savedPathFile.str(), existingPath);
-				std::cout << "Current Paths Saved to exp csv." << std::endl;
-			}
-		}
+	std::cout << initialPositions.size();
+	existingPath = setPaths(planner, initialPositions, targetPositions, size, particles_speed, false, true);
+	initialPositions.clear();
+	targetPositions.clear();
+	for (int i = 0; i < existingPath.size(); i++)
+	{
+		initialPositions.push_back(existingPath[i].getPosition(0));
+		targetPositions.push_back(existingPath[i].getPosition(existingPath[i].getFinalTime()));
+		paths[i].addWayPoint(0, initialPositions[i].x, initialPositions[i].y, initialPositions[i].z);
+		std::cout << existingPath[i].getPosition(0).x << ", " << existingPath[i].getPosition(0).y << ", " << existingPath[i].getPosition(0).z << std::endl;
 	}
-	else if (testPattern == "crossing" && numAgents == 4) {
-		getStartEndPos_Crossing_four();
-	}
-	else if (testPattern == "crossing" && numAgents == 6) {
-		getStartEndPos_Crossing_six();
-	}
-	else if (testPattern == "crossing" && numAgents == 8) {
-		getStartEndPos_Crossing_eight();
-	}
-	else if (testPattern == "stablelev" && numAgents == 6) {
-		getStartEndPos_StableLev_62();
-	}
-
-	if (testPattern != "random" && testPattern != "exp4") {
-		existingPath = setPaths(planner, initialPositions, targetPositions, size, particles_speed, false, true);
-		initialPositions.clear();
-		targetPositions.clear();
-		for (int i = 0; i < existingPath.size(); i++)
-		{
-			initialPositions.push_back(existingPath[i].getPosition(0));
-			targetPositions.push_back(existingPath[i].getPosition(existingPath[i].getFinalTime()));
-			paths[i].addWayPoint(0, initialPositions[i].x, initialPositions[i].y, initialPositions[i].z);
-			std::cout << existingPath[i].getPosition(0).x << ", " << existingPath[i].getPosition(0).y << ", " << existingPath[i].getPosition(0).z << std::endl;
-		}
-		create_directories_if_not_exist("C:/Users/weicheng/Desktop/formal_dataset/" + systemVersion + "/" + std::to_string(numAgents) + "/" + testPattern + "/" + algorithmUsedd + "/" + std::to_string(particles_speed[0]) + "/" + roundNumm);
-		savedPathFile << "C:/Users/weicheng/Desktop/formal_dataset/" + systemVersion + "/" + std::to_string(numAgents) + "/" + testPattern + "/" + algorithmUsedd + "/" + std::to_string(particles_speed[0]) + "/" + roundNumm + "/" + "pathFile_exp.csv";
-		PathPlanner::saveAgentPaths(savedPathFile.str(), existingPath);
-		std::cout << "Current Paths Saved to exp csv." << std::endl;
-	}
-
-	std::cout << "Now we are finding: the maximum speed the system is able to handle." << std::endl;
+	std::cout << "** Weicheng Experiment System - Ver. 240816 **\n" << "Now we are finding: the maximum speed the system is able to handle." << std::endl;
 
 	std::cout << "Current Speeds at: \n";
 	for (int i = 0; i < numAgents; i++) {
 		std::cout << "Particle " << i << ", " << particles_speed[i] << " m/s\n";
 	}
 	std::cout << std::endl;
+
+	create_directories_if_not_exist("C:/Users/weicheng/Desktop/formal_dataset/" + systemVersion + "/" + std::to_string(numAgents) + "/" + testPattern + "/" + algorithmUsedd + "/" + std::to_string(particles_speed[0]) + "/" + roundNumm);
+
+	savedPathFile << "C:/Users/weicheng/Desktop/formal_dataset/" + systemVersion + "/" + std::to_string(numAgents) + "/" + testPattern + "/" + algorithmUsedd + "/" + std::to_string(particles_speed[0]) + "/" + roundNumm + "/" + "pathFile_exp.csv";
+	PathPlanner::saveAgentPaths(savedPathFile.str(), existingPath);
+	std::cout << "Current Paths Saved to exp csv." << std::endl;
 
 	//std::filesystem::path filePath("example.txt");
 
@@ -915,10 +527,9 @@ void* solutionWriterThread(void* arg) {
 	std::string argument2 = roundNumm;
 	std::string argument3 = testPattern;
 	std::string argument4 = std::to_string(current_speedo);
-	//std::string argument5 = "full";
 
 	// Construct the full command
-	std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4 + " ";
+	std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4;
 
 	// Call the executable and wait for it to finish
 	int result = std::system(command.c_str());
@@ -929,6 +540,7 @@ void* solutionWriterThread(void* arg) {
 	else {
 		std::cerr << "Executable finished with errors. Return code: " << result << std::endl;
 	}
+
 
 	// 4. Define matrices to update the positions of the traps
 	float initMat[16] = { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
@@ -947,6 +559,7 @@ void* solutionWriterThread(void* arg) {
 	std::vector<float> times;
 	std::vector<std::vector<glm::vec3>> trapPositions(numPoints); // where you created traps
 	std::vector<std::vector<glm::vec3>> realPositions(99); // where optiTrack detected
+
 	std::stringstream PositionFile;
 
 	// 5. Run the loop for the writing thread 
@@ -974,6 +587,8 @@ void* solutionWriterThread(void* arg) {
 	std::ofstream f;
 
 	int pIndex = 0;
+
+	//std::cout << "herererererer" << std::endl;
 
 	while (running) {
 		if (failDuringExperiment) {
@@ -1022,236 +637,138 @@ void* solutionWriterThread(void* arg) {
 			//}
 		//}
 
+		// 5.0. Check if we are running from files, if not, we run the normal procedure using solver
+		//pthread_mutex_lock(&mtx_running_from_file);
+		//while (runningFromFiles) {
+		//	pthread_cond_wait(&controlVal_running_from_file, &mtx_running_from_file);
+		//}
+
 		// 5.1. Picking up from a bed
-		if (pickingup || pickingup_2d) {
+		if (pickingup) {
 			if (algorithmUsed == TEMPORAL) GSPAT_TS::resetInitialPhases(solver);
-			moving = true;
-			currTime = 0;
-			// detect the particle positions
-			detectedPositions = getDetectedPositions(detector, numPoints);
-			//std::vector<glm::vec3> detectedPositions = getDetectedPositions(Optitrack, numPoints);
-			float aboveHeight = 0.062f; //0.062
-			float stopDuration = 1.f;
-			float initialiseVelocity = 0.01f;
-			float initialTime = (aboveHeight - stageHeight) / initialiseVelocity + stopDuration;
-			for (int i = 0; i < numPoints; i++)
-				detectedPositions[i].z = aboveHeight;
-
-			std::vector<AgentPath> tmpPaths;
-
-			// compute the paths
-			if (pickingup) {
-				tmpPaths = setPaths(planner, detectedPositions, initialPositions, size, particles_pickup_speed, false, true);
-			}
-			else {
-				std::vector<Agent> agents;
-				//			agents = {
-				//{0, {{0, -0.04, -0.04, 0.0}}},  // Agent 0 starting at z=0.0
-				//{1, {{0, 0.04, 0.04, 0.0}}}     // Agent 1 starting at z=0.0
-				//			};
-
-				std::string filePath = "C:/Users/weicheng/Desktop/ServerSampler/bin/pickup_transition.csv"; // Specify your file path here
-
-				std::vector<double> targetZs;
-				std::vector<Agent> agents1, agents2;
-				targetZs = {};  // to all midpoint
-
-				for (int i = 0; i < numAgents; i++) {
-					// Create the initial waypoint for this agent
-					Waypoint initialWaypoint(0, detectedPositions[i][0], detectedPositions[i][1], detectedPositions[i][2]);
-
-					// Initialize the Agent with the initial waypoint
-					agents.push_back(Agent(i, { initialWaypoint }));
-					targetZs.push_back(0.12f);
-				}
-
-				for (int i = 0; i < numAgents; ++i) {
-					generateWaypoints(agents[i], particles_pickup_speed[0], targetZs[i]);
-				}
-
-				writeOutputToFile(filePath, agents);
-				std::cout << "Intermediate Output written to " << filePath << std::endl;
-
-				//tmpPaths = PathPlanner::readAgentPaths(filePath);
-
-				// Another transform (movement) phase
-				path1plannerFailed = false;
-				// 1st part
-				glm::vec3 boundaryMin(-0.06f, -0.06f, centreHeight);
-				glm::vec3 boundaryMax(+0.06f, +0.06f, centreHeight);
-				planner.setBoundary(boundaryMin, boundaryMax);
-				glm::vec3 size(0.01, 0.01, 0.012);
-				std::vector<std::string> filePaths = {
-					filePath,
-					"C:/Users/weicheng/Desktop/ServerSampler/bin/2d_paths1.csv",
-					"C:/Users/weicheng/Desktop/ServerSampler/bin/2d_paths2.csv"
-				};
-
-				std::string txtFilePath = "C:/Users/weicheng/Desktop/ServerSampler/bin/2d_goals.txt";
-				std::string csvFilePath = "C:/Users/weicheng/Desktop/ServerSampler/bin/2d_goals_planned.csv";
-
-				std::ofstream fio(txtFilePath);
-
-				std::string mergeFilePath = "C:/Users/weicheng/Desktop/ServerSampler/bin/2d_paths_merge.csv";
-
-				std::vector<glm::vec3> detectedPositionsRevisited;
-				std::vector<glm::vec3> initialPositionsRevisited;
-				for (int i = 0;i < detectedPositions.size(); i++) {
-					glm::vec3 temp_particle_d = detectedPositions[i];
-					glm::vec3 temp_particle_t = initialPositions[i];
-					temp_particle_d[2] = centreHeight;
-					temp_particle_t[2] = centreHeight;
-					detectedPositionsRevisited.push_back(temp_particle_d);
-					initialPositionsRevisited.push_back(temp_particle_t);
-				}
-
-				fio << "start" << std::endl;
-				for (int i = 0;i < detectedPositions.size(); i++) {
-					fio << detectedPositionsRevisited[i][0] << "," << detectedPositionsRevisited[i][1] << "," << detectedPositionsRevisited[i][2] << std::endl;
-				}
-
-				fio << "end" << std::endl;
-				for (int i = 0;i < detectedPositions.size(); i++) {
-					fio << initialPositionsRevisited[i][0] << "," << initialPositionsRevisited[i][1] << "," << initialPositionsRevisited[i][2] << std::endl;
-				}
-
-				fio << "speed" << std::endl;
-				if (particles_pickup_speed[0] >= 0.25f) {
-					fio << "0.25" << std::endl;
-				}
-				else {
-					fio << particles_pickup_speed[0] << std::endl;
-				}
-
-				fio.close();
-				
-				std::vector<AgentPath> paths1;
-				std::vector<AgentPath> paths1_alt;
-				if (usePath1) {
-					paths1 = setPaths(planner, detectedPositionsRevisited, initialPositionsRevisited, size, particles_pickup_speed, false, false);
-				}
-				else {
-					// Weicheng Path Planner
-					const char* executablePath = "C:/Python311/python.exe ";
-					std::string argument1 = "c:/Users/weicheng/Desktop/formal_dataset/pathplan_v2.py";
-
-					// Construct the full command
-					std::string command = executablePath + argument1;
-
-					// Call the executable and wait for it to finish
-					int result = std::system(command.c_str());
-					// Check the result
-					if (result == 0) {
-						std::cout << "Alt Path Planning Executable finished successfully." << std::endl;
+			
+			//while (1) {
+				auto now = std::chrono::system_clock::now();
+				if (turbulance_generator) {
+					
+					auto elapsed_seconds = std::chrono::duration_cast<std::chrono::seconds>(now - startTurbulance).count();
+					if (elapsed_seconds > 10) {
+						turbulance_generator = false;
+						turnTransducersOff = true;
 					}
 					else {
-						std::cerr << "Alt Path Planning Executable finished with errors. Return code: " << result << std::endl;
-						logFile << "Alt Path Planning Executable finished with errors. Return code: " << result << "\n";
-						path1plannerFailed = true;
+						std::cout << elapsed_seconds << std::endl;
+					}
+					//continue;
+				}
+				moving = true;
+				currTime = 0;
+				// detect the particle positions
+				std::vector<glm::vec3> detectedPositions = getDetectedPositions(detector, numPoints);
+				//std::vector<glm::vec3> detectedPositions = getDetectedPositions(Optitrack, numPoints);
+				float aboveHeight = 0.062f; //0.062
+				float stopDuration = 1.f;
+				float initialiseVelocity = 0.01f;
+				float initialTime = (aboveHeight - stageHeight) / initialiseVelocity + stopDuration;
+				for (int i = 0; i < numPoints; i++)
+					detectedPositions[i].z = aboveHeight;
+
+				// compute the paths
+				std::vector<AgentPath> tmpPaths = setPaths(planner, detectedPositions, initialPositions, size, particles_pickup_speed, false, true);
+
+				//float time_offset = 0.0f; // this let particles picked up one by one
+
+				if (tmpPaths.size() == numPoints) {
+					for (int i = 0; i < numPoints; i++) {
+						glm::vec3 initPos = tmpPaths[i].getPosition(0);
+						paths[i].clearWaypoints();
+						paths[i].addWayPoint(0.f, initPos.x, initPos.y, stageHeight);
+						paths[i].addWayPoint(stopDuration, initPos.x, initPos.y, stageHeight + 0.01f);
+						for (int j = 0; j < tmpPaths[i].getNumPoints(); j++)
+							paths[i].addWayPoint(initialTime + tmpPaths[i].getPoint(j).t, tmpPaths[i].getPoint(j).x, tmpPaths[i].getPoint(j).y, tmpPaths[i].getPoint(j).z);
+					}
+					// update the matrices
+					for (int p = 0; p < numPoints; p++) {
+						glm::vec3 pos = paths[p].getPosition(0);
+						mStarts[16 * p + X_index] = mEnds[16 * p + X_index] = pos.x;
+						mStarts[16 * p + Y_index] = mEnds[16 * p + Y_index] = pos.y;
+						mStarts[16 * p + Z_index] = mEnds[16 * p + Z_index] = pos.z;
 					}
 
-					paths1_alt = PathPlanner::readAgentPaths(csvFilePath);
-				}
-
-				if (paths1.size() > 0 && usePath1 || paths1_alt.size() > 0 && !usePath1) {
-					if (usePath1) {
-						PathPlanner::saveAgentPaths(filePaths[1], paths1);
+					lastIntendedFinishTimePickUp = 0.0f;
+					for (int p = 0; p < numPoints; p++) {
+						float tempTime = paths[p].getFinalTime();
+						if (tempTime > lastIntendedFinishTimePickUp) {
+							lastIntendedFinishTimePickUp = tempTime;
+						}
 					}
-					else {
-						PathPlanner::saveAgentPaths(filePaths[1], paths1_alt);
-					}
-					std::cout << "Path 1 intermediate Part Saved." << std::endl;
-
-					// 2nd Part
-					std::vector<Agent> agents;
-					//			agents = {
-					//{0, {{0, -0.04, -0.04, 0.0}}},  // Agent 0 starting at z=0.0
-					//{1, {{0, 0.04, 0.04, 0.0}}}     // Agent 1 starting at z=0.0
-					//			};
-
-					std::vector<double> targetZs;
-					std::vector<Agent> agents1, agents2;
-
-					//std::string outputFilePath = "C:/Users/weicheng/Desktop/AcousticPathPlanning/testMerge.csv";
-					targetZs = {};  // to all midpoint
-
-					for (int i = 0; i < numAgents; i++) {
-						// Create the initial waypoint for this agent
-						Waypoint initialWaypoint(0, initialPositions[i][0], initialPositions[i][1], centreHeight);
-
-						// Initialize the Agent with the initial waypoint
-						agents.push_back(Agent(i, { initialWaypoint }));
-						targetZs.push_back(initialPositions[i][2]);
-					}
-
-					for (int i = 0; i < numAgents; ++i) {
-						generateWaypoints(agents[i], particles_pickup_speed[0], targetZs[i]);
-					}
-
-					writeOutputToFile(filePaths[2], agents);
-					std::cout << "Second Intermediate Output written to " << filePaths[2] << std::endl;
-
-					// Merge
-					mergeCSVFiles(filePaths, mergeFilePath);
-					std::cout << "Merged output written to " << mergeFilePath << std::endl;
-
-					// Final Read & Confirm Path
-					tmpPaths = PathPlanner::readAgentPaths(mergeFilePath);
-					//tmmPaths = PathPlanner::readAgentPaths(filePath);
-				}
-				else {
-					std::cout << "Initialization: Part 1 selected path planner failed, period. Maybe try the other planner?" << std::endl;
-					path1plannerFailed = true;
-				}
-
-				//setPaths(planner, detectedPositions, initialPositions, size, particles_pickup_speed, false, true);
-				//mergeCSVFiles(filePaths, outputFilePath);
-				//std::cout << "Merged output written to " << outputFilePath << std::endl;
-			}
-
-			//float time_offset = 0.0f; // this let particles picked up one by one
-
-			if (tmpPaths.size() == numPoints) {
-				for (int i = 0; i < numPoints; i++) {
-					glm::vec3 initPos = tmpPaths[i].getPosition(0);
-					paths[i].clearWaypoints();
-					paths[i].addWayPoint(0.f, initPos.x, initPos.y, stageHeight);
-					paths[i].addWayPoint(stopDuration, initPos.x, initPos.y, stageHeight + 0.01f);
-					for (int j = 0; j < tmpPaths[i].getNumPoints(); j++)
-						paths[i].addWayPoint(initialTime + tmpPaths[i].getPoint(j).t, tmpPaths[i].getPoint(j).x, tmpPaths[i].getPoint(j).y, tmpPaths[i].getPoint(j).z);
-				}
-				// update the matrices
-				for (int p = 0; p < numPoints; p++) {
-					glm::vec3 pos = paths[p].getPosition(0);
-					mStarts[16 * p + X_index] = mEnds[16 * p + X_index] = pos.x;
-					mStarts[16 * p + Y_index] = mEnds[16 * p + Y_index] = pos.y;
-					mStarts[16 * p + Z_index] = mEnds[16 * p + Z_index] = pos.z;
-				}
-
-				lastIntendedFinishTimePickUp = 0.0f;
-				for (int p = 0; p < numPoints; p++) {
-					float tempTime = paths[p].getFinalTime();
-					if (tempTime > lastIntendedFinishTimePickUp) {
-						lastIntendedFinishTimePickUp = tempTime;
-					}
-				}
-
-				if (!path1plannerFailed) {
-					turnTransducersOff = false; // turn the transducers on
 					pickUpRunningFlag = true;
-				}
 
-				pickingup = false;
-				pickingup_2d = false;
-			}
-			else {
-				pickingup = false;
-				pickingup_2d = false;
-			}
-			glm::vec3 boundaryMin(-0.06f, -0.06f, centreHeight - 0.06f);
-			glm::vec3 boundaryMax(+0.06f, +0.06f, centreHeight + 0.06f);
-			planner.setBoundary(boundaryMin, boundaryMax);
-			glm::vec3 size(0.009, 0.009, 0.9);
+					turnTransducersOff = false; // turn the transducers on
+					pickingup = false;
+					break;
+				}
+				else {
+					while (1) {
+
+					//	//getStartEndPos_Pushing_inside();
+						detectedPositions = getDetectedPositions(detector, numPoints);
+						//std::vector<glm::vec3> detectedPositions2 = detectedPositions;
+						//for (int i = 0; i < detectedPositions2.size(); i++) {
+						//	detectedPositions2[i][2] = 0.12f;
+						//}
+						//std::vector<AgentPath> tmpPaths = setPaths(planner, detectedPositions, detectedPositions2, size, particles_pickup_speed, false, true);
+						//std::vector<AgentPath> tmpPaths = setPaths(planner, getRandomPositions(numAgents), getRandomPositions(numAgents), size, particles_pickup_speed, false, true);
+						std::vector<AgentPath> tmpPaths = setPaths(planner, initialPositions1, targetPositions1, size, particles_pickup_speed, false, true);
+						if (tmpPaths.size() == numPoints) {
+							for (int i = 0; i < numPoints; i++) {
+								glm::vec3 initPos = tmpPaths[i].getPosition(0);
+								paths[i].clearWaypoints();
+								paths[i].addWayPoint(0.f, initPos.x, initPos.y, stageHeight);
+								paths[i].addWayPoint(stopDuration, initPos.x, initPos.y, stageHeight + 0.01f);
+								for (int j = 0; j < tmpPaths[i].getNumPoints(); j++)
+									paths[i].addWayPoint(initialTime + tmpPaths[i].getPoint(j).t, tmpPaths[i].getPoint(j).x, tmpPaths[i].getPoint(j).y, tmpPaths[i].getPoint(j).z);
+							}
+							// update the matrices
+							for (int p = 0; p < numPoints; p++) {
+								glm::vec3 pos = paths[p].getPosition(0);
+								mStarts[16 * p + X_index] = mEnds[16 * p + X_index] = pos.x;
+								mStarts[16 * p + Y_index] = mEnds[16 * p + Y_index] = pos.y;
+								mStarts[16 * p + Z_index] = mEnds[16 * p + Z_index] = pos.z;
+							}
+
+							//lastIntendedFinishTimePickUp = 0.0f;
+							//for (int p = 0; p < numPoints; p++) {
+							//	float tempTime = paths[p].getFinalTime();
+							//	if (tempTime > lastIntendedFinishTimePickUp) {
+							//		lastIntendedFinishTimePickUp = tempTime;
+							//	}
+							//}
+							//pickUpRunningFlag = true;
+							std::cout << "Turbulance Generated." << std::endl;
+							startTurbulance = std::chrono::system_clock::now();
+							turbulance_generator = true;
+							turnTransducersOff = false; // turn the transducers on
+
+					//		//std::async(std::launch::async, [] {
+					//		//	std::this_thread::sleep_for(std::chrono::seconds(10));
+					//		//	turnTransducersOff = true;
+					//		//	std::cout << "Transducer Off (Reset)." << std::endl;
+					//		//});
+
+					//		//std::this_thread::sleep_for(std::chrono::seconds(8));
+
+							break;
+						}
+					}
+
+					//if (turbulance_generator) {
+					//	turbulance_generator = false;
+					//}
+
+					pickingup = false;
+				}
+			//}
 		}
 
 		if (speed_reduce_calc || speed_increase_calc) {
@@ -1392,7 +909,6 @@ void* solutionWriterThread(void* arg) {
 			std::string argument2 = roundNumm;
 			std::string argument3 = testPattern;
 			std::string argument4 = std::to_string(particles_speed[0]);
-			//std::string argument5 = "full";
 
 			// Construct the full command
 			std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4;
@@ -1447,7 +963,6 @@ void* solutionWriterThread(void* arg) {
 			std::string argument2 = roundNumm;
 			std::string argument3 = testPattern;
 			std::string argument4 = std::to_string(particles_speed[0]);
-			//std::string argument5 = "full";
 
 			// Construct the full command
 			std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4;
@@ -1467,294 +982,6 @@ void* solutionWriterThread(void* arg) {
 			binarySearchLowerUpper = false;
 		}
 
-		if (mlpAnalysis) {
-			mlpAnalysis = false;
-			const char* executablePath2 = "python ";
-
-			argument1 = "c:/Users/weicheng/Desktop/formal_dataset/mlp_backward.py";
-			argument2 = "--numParticles " + std::to_string(numAgents);
-			argument3 = "--data_file \"C:/Users/weicheng/Desktop/formal_dataset/training_data_alt_" + std::to_string(numAgents) + "_particles.txt\"";
-			argument4 = "--particle_no 0";
-			std::string argument5 = "--predict_mode 2";
-			std::string argument6 = "--path_id " + std::to_string(numAgents) + "_" + algorithmUsedd + "_" + testPattern + "_" + roundNumm + "_" + systemVersion;
-			std::string argument7 = "predict";
-			command = executablePath2 + argument1 + " " + argument2 + " " + argument3 + " " + argument4 + " " + argument5 + " " + argument6 + " " + argument7;
-
-			result = std::system(command.c_str());
-			bool result_success_flag = false;
-			// Check the result
-			if (result == 0) {
-				std::cout << "Inference finished successfully." << std::endl;
-				result_success_flag = true;
-			}
-			else {
-				std::cerr << "Inference finished with errors. Return code: " << result << std::endl;
-				logFile << "Inference finished with errors. Return code: " << result << "\n";
-			}
-
-			float tempFloat;
-			int intValue;
-			float floatValue;
-
-			if (result_success_flag) {
-				result_success_flag = false;
-				const std::string filePath = "C:\\Users\\weicheng\\Desktop\\ServerSampler\\bin\\mlpTrainerInference.txt";
-				int maxRetries = 15;
-				bool fileFound = false;
-
-				while (maxRetries--) {
-					if (std::filesystem::exists(filePath)) {
-						fileFound = true;
-						break;
-					}
-					std::this_thread::sleep_for(std::chrono::seconds(1));
-				}
-
-				if (fileFound) {
-					std::ifstream file(filePath);
-					if (file.is_open()) {
-						std::string line;
-						if (std::getline(file, line)) {
-							std::istringstream iss(line);
-
-							iss >> tempFloat >> floatValue;
-							intValue = static_cast<int>(tempFloat);
-
-							std::cout << "Integer: " << intValue << ", Float: " << floatValue << std::endl;
-							result_success_flag = true;
-						}
-						file.close();
-
-						// Delete the file
-						if (std::filesystem::remove(filePath)) {
-							std::cout << "File deleted successfully." << std::endl;
-						}
-						else {
-							std::cerr << "Failed to delete the file." << std::endl;
-						}
-					}
-					else {
-						std::cerr << "Failed to open the file." << std::endl;
-					}
-				}
-				else {
-					std::cerr << "File not found after 15 retries." << std::endl;
-				}
-			}
-
-			if (result_success_flag) {
-				result_success_flag = false;
-				current_speedo = floatValue;
-				// Amplitude Adjustments
-				for (int i = 0; i < numAgents; i++) {
-					for (int g = 0; g < numGeometries; g++) {
-						ampBuffer[g * numPoints + i] = intValue;
-					}
-					ampOffsets[i] = intValue - 16000;
-				}
-				std::cout << "Set the current amplitude to " << intValue << ", and velocity to " << floatValue << "." << std::endl;
-
-
-				particles_speed.clear();
-				for (int i = 0; i < numAgents; i++) {
-					particles_speed.push_back(current_speedo);
-				}
-
-				existingPath = setPaths(planner, initialPositions, targetPositions, size, particles_speed, false, true);
-				initialPositions.clear();
-				targetPositions.clear();
-				for (int i = 0; i < existingPath.size(); i++)
-				{
-					initialPositions.push_back(existingPath[i].getPosition(0));
-					targetPositions.push_back(existingPath[i].getPosition(existingPath[i].getFinalTime()));
-					paths[i].addWayPoint(0, initialPositions[i].x, initialPositions[i].y, initialPositions[i].z);
-					std::cout << existingPath[i].getPosition(0).x << ", " << existingPath[i].getPosition(0).y << ", " << existingPath[i].getPosition(0).z << std::endl;
-				}
-
-				std::cout << "Current Speeds at: \n";
-				for (int i = 0; i < numAgents; i++) {
-					std::cout << "Particle " << i << ", " << particles_speed[i] << " m/s\n";
-				}
-				std::cout << std::endl;
-
-				create_directories_if_not_exist("C:/Users/weicheng/Desktop/formal_dataset/" + systemVersion + "/" + std::to_string(numAgents) + "/" + testPattern + "/" + algorithmUsedd + "/" + std::to_string(particles_speed[0]) + "/" + roundNumm);
-				savedPathFile.str("");
-				savedPathFile << "C:/Users/weicheng/Desktop/formal_dataset/" + systemVersion + "/" + std::to_string(numAgents) + "/" + testPattern + "/" + algorithmUsedd + "/" + std::to_string(particles_speed[0]) + "/" + roundNumm + "/" + "pathFile_exp.csv";
-				PathPlanner::saveAgentPaths(savedPathFile.str(), existingPath);
-				savedPathFile.str("");
-				savedPathFile << "C:/Users/weicheng/Desktop/formal_dataset/" + systemVersion + "/" + std::to_string(numAgents) + "/" + testPattern + "/" + algorithmUsedd + "/" + std::to_string(particles_speed[0]) + "/" + roundNumm + "/" + "pathFile.csv";
-				PathPlanner::saveAgentPaths(savedPathFile.str(), existingPath);
-				std::cout << "Current Paths Saved to exp csv." << std::endl;
-
-				const char* executablePath = "C:/Users/weicheng/Desktop/AcousticPathPlanning/AcousticPathPlanning/x64/Debug/AcousticLevitation.exe ";
-				std::string argument1 = std::to_string(numAgents);
-				std::string argument2 = roundNumm;
-				std::string argument3 = testPattern;
-				std::string argument4 = std::to_string(particles_speed[0]);
-				//std::string argument5 = "full";
-
-				// Construct the full command
-				std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4;
-
-				// Call the executable and wait for it to finish
-				int result = std::system(command.c_str());
-				// Check the result
-				if (result == 0) {
-					std::cout << "Executable finished successfully." << std::endl;
-				}
-				else {
-					std::cerr << "Executable finished with errors. Return code: " << result << std::endl;
-				}
-
-			}
-		}
-
-		if (simpleAnalysis) {
-			simpleAnalysis = false;
-
-			const char* executablePath1 = "python ";
-
-			argument1 = "C:/Users/weicheng/Desktop/formal_dataset/probability_pair.py";
-			argument2 = std::to_string(numAgents);
-			if (simpleAnalysisFullMode) {
-				argument3 = std::to_string(numAgents) + "_" + algorithmUsedd + "_" + testPattern + "_" + roundNumm + "_" + systemVersion;
-			}
-			else {
-				argument3 = "";
-			}
-
-			command = executablePath1 + argument1 + " " + argument2 + " " + argument3;
-
-			result = std::system(command.c_str());
-			bool result_success_flag = false;
-			// Check the result
-			if (result == 0) {
-				std::cout << "Inference finished successfully." << std::endl;
-				result_success_flag = true;
-			}
-			else {
-				std::cerr << "Inference finished with errors. Return code: " << result << std::endl;
-				logFile << "Inference finished with errors. Return code: " << result << "\n";
-			}
-
-			float tempFloat;
-			int intValue;
-			float floatValue;
-
-			if (result_success_flag) {
-				result_success_flag = false;
-				const std::string filePath = "C:\\Users\\weicheng\\Desktop\\ServerSampler\\bin\\bnTrainerInference.txt";
-				int maxRetries = 15;
-				bool fileFound = false;
-
-				while (maxRetries--) {
-					if (std::filesystem::exists(filePath)) {
-						fileFound = true;
-						break;
-					}
-					std::this_thread::sleep_for(std::chrono::seconds(1));
-				}
-
-				if (fileFound) {
-					std::ifstream file(filePath);
-					if (file.is_open()) {
-						std::string line;
-						if (std::getline(file, line)) {
-							std::istringstream iss(line);
-
-							iss >> tempFloat >> floatValue;
-							intValue = static_cast<int>(tempFloat);
-
-							std::cout << "Integer: " << intValue << ", Float: " << floatValue << std::endl;
-							result_success_flag = true;
-						}
-						file.close();
-
-						// Delete the file
-						if (std::filesystem::remove(filePath)) {
-							std::cout << "File deleted successfully." << std::endl;
-						}
-						else {
-							std::cerr << "Failed to delete the file." << std::endl;
-						}
-					}
-					else {
-						std::cerr << "Failed to open the file." << std::endl;
-					}
-				}
-				else {
-					std::cerr << "File not found after 15 retries." << std::endl;
-				}
-			}
-
-			if (result_success_flag) {
-				result_success_flag = false;
-				current_speedo = floatValue;
-				// Amplitude Adjustments
-				for (int i = 0; i < numAgents; i++) {
-					for (int g = 0; g < numGeometries; g++) {
-						ampBuffer[g * numPoints + i] = intValue;
-					}
-					ampOffsets[i] = intValue - 16000;
-				}
-				std::cout << "Set the current amplitude to " << intValue << ", and velocity to " << floatValue << "." << std::endl;
-
-
-				particles_speed.clear();
-				for (int i = 0; i < numAgents; i++) {
-					particles_speed.push_back(current_speedo);
-				}
-
-				existingPath = setPaths(planner, initialPositions, targetPositions, size, particles_speed, false, true);
-				initialPositions.clear();
-				targetPositions.clear();
-				for (int i = 0; i < existingPath.size(); i++)
-				{
-					initialPositions.push_back(existingPath[i].getPosition(0));
-					targetPositions.push_back(existingPath[i].getPosition(existingPath[i].getFinalTime()));
-					paths[i].addWayPoint(0, initialPositions[i].x, initialPositions[i].y, initialPositions[i].z);
-					std::cout << existingPath[i].getPosition(0).x << ", " << existingPath[i].getPosition(0).y << ", " << existingPath[i].getPosition(0).z << std::endl;
-				}
-
-				std::cout << "Current Speeds at: \n";
-				for (int i = 0; i < numAgents; i++) {
-					std::cout << "Particle " << i << ", " << particles_speed[i] << " m/s\n";
-				}
-				std::cout << std::endl;
-
-				create_directories_if_not_exist("C:/Users/weicheng/Desktop/formal_dataset/" + systemVersion + "/" + std::to_string(numAgents) + "/" + testPattern + "/" + algorithmUsedd + "/" + std::to_string(particles_speed[0]) + "/" + roundNumm);
-				savedPathFile.str("");
-				savedPathFile << "C:/Users/weicheng/Desktop/formal_dataset/" + systemVersion + "/" + std::to_string(numAgents) + "/" + testPattern + "/" + algorithmUsedd + "/" + std::to_string(particles_speed[0]) + "/" + roundNumm + "/" + "pathFile_exp.csv";
-				PathPlanner::saveAgentPaths(savedPathFile.str(), existingPath);
-				savedPathFile.str("");
-				savedPathFile << "C:/Users/weicheng/Desktop/formal_dataset/" + systemVersion + "/" + std::to_string(numAgents) + "/" + testPattern + "/" + algorithmUsedd + "/" + std::to_string(particles_speed[0]) + "/" + roundNumm + "/" + "pathFile.csv";
-				PathPlanner::saveAgentPaths(savedPathFile.str(), existingPath);
-				std::cout << "Current Paths Saved to exp csv." << std::endl;
-
-				const char* executablePath = "C:/Users/weicheng/Desktop/AcousticPathPlanning/AcousticPathPlanning/x64/Debug/AcousticLevitation.exe ";
-				std::string argument1 = std::to_string(numAgents);
-				std::string argument2 = roundNumm;
-				std::string argument3 = testPattern;
-				std::string argument4 = std::to_string(particles_speed[0]);
-				//std::string argument5 = "full";
-
-				// Construct the full command
-				std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4;
-
-				// Call the executable and wait for it to finish
-				int result = std::system(command.c_str());
-				// Check the result
-				if (result == 0) {
-					std::cout << "Executable finished successfully." << std::endl;
-				}
-				else {
-					std::cerr << "Executable finished with errors. Return code: " << result << std::endl;
-				}
-
-			}
-
-		}
-
 		if (bnAnalysis) {
 			bnAnalysis = false;
 
@@ -1765,7 +992,7 @@ void* solutionWriterThread(void* arg) {
 			else {
 				argument1 = "C:/Users/weicheng/Desktop/formal_dataset/bn_inference_v2_alt.py";
 			}
-
+			
 			argument2 = "--num_particles " + std::to_string(numAgents);
 			argument3 = "--mode predict";
 			argument4 = "--observation 0 \"" + std::to_string(numAgents) + "_" + algorithmUsedd + "_" + testPattern + "_" + roundNumm + "_" + systemVersion + "\"";
@@ -1882,7 +1109,6 @@ void* solutionWriterThread(void* arg) {
 				std::string argument2 = roundNumm;
 				std::string argument3 = testPattern;
 				std::string argument4 = std::to_string(particles_speed[0]);
-				//std::string argument5 = "full";
 
 				// Construct the full command
 				std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4;
@@ -1953,232 +1179,12 @@ void* solutionWriterThread(void* arg) {
 			//PathPlanner::saveAgentPaths(savedPathFile.str(), paths);
 		}
 
-		if (goToTestingPos || goToTestingPos_2d)    // 3
+		if (goToTestingPos)    // 3
 		{
 			// compute the paths
 			//velocity = 0.01;
-			if (goToTestingPos_2d) {
-
-				// Pre-movement Part: Lowering/Highering to the same height (centre height).
-				std::vector<Agent> agents;
-				//			agents = {
-				//{0, {{0, -0.04, -0.04, 0.0}}},  // Agent 0 starting at z=0.0
-				//{1, {{0, 0.04, 0.04, 0.0}}}     // Agent 1 starting at z=0.0
-				//			};
-
-				std::string filePath = "C:/Users/weicheng/Desktop/ServerSampler/bin/during_transition.csv"; // Specify your file path here
-
-				std::vector<double> targetZs;
-				std::vector<Agent> agents1, agents2;
-				targetZs = {};  // to all midpoint
-
-				for (int i = 0; i < numAgents; i++) {
-					// Create the initial waypoint for this agent
-					Waypoint initialWaypoint(0, initialPositions[i][0], initialPositions[i][1], initialPositions[i][2]);
-
-					// Initialize the Agent with the initial waypoint
-					agents.push_back(Agent(i, { initialWaypoint }));
-					targetZs.push_back(0.12f);
-				}
-
-				for (int i = 0; i < numAgents; ++i) {
-					generateWaypoints(agents[i], particles_speed[0], targetZs[i]);
-				}
-
-				writeOutputToFile(filePath, agents);
-				std::cout << "Intermediate Output written to " << filePath << std::endl;
-
-
-				path1plannerFailed = false;
-				// 1st part
-				glm::vec3 boundaryMin(-0.06f, -0.06f, centreHeight);
-				glm::vec3 boundaryMax(+0.06f, +0.06f, centreHeight);
-				planner.setBoundary(boundaryMin, boundaryMax);
-				glm::vec3 size(0.01, 0.01, 0.012);
-				std::vector<std::string> filePaths = {
-					filePath,
-					"C:/Users/weicheng/Desktop/ServerSampler/bin/2d_paths1.csv",
-					"C:/Users/weicheng/Desktop/ServerSampler/bin/2d_paths2.csv"
-				};
-
-				std::string txtFilePath = "C:/Users/weicheng/Desktop/ServerSampler/bin/2d_goals.txt";
-				std::string csvFilePath = "C:/Users/weicheng/Desktop/ServerSampler/bin/2d_goals_planned.csv";
-
-				std::ofstream fio(txtFilePath);
-
-				std::string mergeFilePath = "C:/Users/weicheng/Desktop/ServerSampler/bin/2d_paths_merge.csv";
-				if (developmentMode) {
-					detectedPositions.clear();
-					detectedPositions.push_back(glm::vec3(-0.04f, -0.04f, 0.12f)); // A
-					detectedPositions.push_back(glm::vec3(0.04f, 0.04f, 0.12f)); // B
-					detectedPositions.push_back(glm::vec3(-0.04f, 0.04f, 0.12f)); // C
-					detectedPositions.push_back(glm::vec3(0.04f, -0.04f, 0.12f)); // D
-					//detectedPositions.push_back(glm::vec3(0.04f, 0.00f, 0.12f)); // E
-					//detectedPositions.push_back(glm::vec3(-0.04f, 0.00f, 0.12f)); // F
-					//detectedPositions.push_back(glm::vec3(0.00f, 0.04f, 0.12f)); // G
-					//detectedPositions.push_back(glm::vec3(0.00f, -0.04f, 0.12f)); // H
-
-					targetPositions.clear();
-					targetPositions.push_back(glm::vec3(0.04f, -0.04f, 0.16f)); // A
-					targetPositions.push_back(glm::vec3(-0.04f, 0.04f, 0.05f)); // B
-					targetPositions.push_back(glm::vec3(-0.04f, -0.04f, 0.06f)); // C
-					targetPositions.push_back(glm::vec3(0.04f, 0.04f, 0.11f)); // D
-				}
-
-				std::vector<glm::vec3> initialPositionsRevisited;
-				std::vector<glm::vec3> targetPositionsRevisited;
-				for (int i = 0;i < initialPositions.size(); i++) {
-					glm::vec3 temp_particle_d = initialPositions[i];
-					glm::vec3 temp_particle_t = targetPositions[i];
-					temp_particle_d[2] = centreHeight;
-					temp_particle_t[2] = centreHeight;
-					initialPositionsRevisited.push_back(temp_particle_d);
-					targetPositionsRevisited.push_back(temp_particle_t);
-				}
-
-				fio << "start" << std::endl;
-				for (int i = 0;i < initialPositions.size(); i++) {
-					fio << initialPositionsRevisited[i][0] << "," << initialPositionsRevisited[i][1] << "," << initialPositionsRevisited[i][2] << std::endl;
-				}
-
-				fio << "end" << std::endl;
-				for (int i = 0;i < detectedPositions.size(); i++) {
-					fio << targetPositionsRevisited[i][0] << "," << targetPositionsRevisited[i][1] << "," << targetPositionsRevisited[i][2] << std::endl;
-				}
-
-				fio << "speed" << std::endl;
-				if (current_speedo >= 0.08f) {
-					fio << "0.08" << std::endl;
-				}
-				else {
-					fio << current_speedo << std::endl;
-				}
-
-				fio.close();
-
-				std::vector<float> particle_speed_revisited;
-				for (int i = 0; i < numAgents; i++) {
-					if (current_speedo >= 0.05f) {
-						particle_speed_revisited.push_back(0.05f);
-					}
-					else {
-						particle_speed_revisited.push_back(current_speedo);
-					}
-				}
-
-				std::vector<AgentPath> paths1;
-				std::vector<AgentPath> paths1_alt;
-				if (usePath1) {
-					paths1 = setPaths(planner, initialPositionsRevisited, targetPositionsRevisited, size, particle_speed_revisited, false, false);
-				}
-				else {
-					// Weicheng Path Planner
-					const char* executablePath = "C:/Python311/python.exe ";
-					std::string argument1 = "c:/Users/weicheng/Desktop/formal_dataset/pathplan_v2.py";
-
-					// Construct the full command
-					std::string command = executablePath + argument1;
-
-					// Call the executable and wait for it to finish
-					int result = std::system(command.c_str());
-					// Check the result
-					if (result == 0) {
-						std::cout << "Alt Path Planning Executable finished successfully." << std::endl;
-					}
-					else {
-						std::cerr << "Alt Path Planning Executable finished with errors. Return code: " << result << std::endl;
-						logFile << "Alt Path Planning Executable finished with errors. Return code: " << result << "\n";
-						path1plannerFailed = true;
-					}
-
-					paths1_alt = PathPlanner::readAgentPaths(csvFilePath);
-				}
-				
-				if (paths1.size() > 0 && usePath1 || paths1_alt.size() > 0 && !usePath1) {
-					if (usePath1) {
-						PathPlanner::saveAgentPaths(filePaths[1], paths1);
-					}
-					else {
-						PathPlanner::saveAgentPaths(filePaths[1], paths1_alt);
-					}
-					std::cout << "Path 1 intermediate Part Saved." << std::endl;
-
-					// 2nd Part
-					std::vector<Agent> agents;
-					//			agents = {
-					//{0, {{0, -0.04, -0.04, 0.0}}},  // Agent 0 starting at z=0.0
-					//{1, {{0, 0.04, 0.04, 0.0}}}     // Agent 1 starting at z=0.0
-					//			};
-
-					std::vector<double> targetZs;
-					std::vector<Agent> agents1, agents2;
-
-					//std::string outputFilePath = "C:/Users/weicheng/Desktop/AcousticPathPlanning/testMerge.csv";
-					targetZs = {};  // to all midpoint
-
-					for (int i = 0; i < numAgents; i++) {
-						// Create the initial waypoint for this agent
-						Waypoint initialWaypoint(0, targetPositions[i][0], targetPositions[i][1], centreHeight);
-
-						// Initialize the Agent with the initial waypoint
-						agents.push_back(Agent(i, { initialWaypoint }));
-						targetZs.push_back(targetPositions[i][2]);
-					}
-
-					for (int i = 0; i < numAgents; ++i) {
-						generateWaypoints(agents[i], current_speedo, targetZs[i]);
-					}
-
-					writeOutputToFile(filePaths[2], agents);
-					std::cout << "Second Intermediate Output written to " << filePaths[2] << std::endl;
-
-					// Merge
-					mergeCSVFiles(filePaths, mergeFilePath);
-					std::cout << "Merged output written to " << mergeFilePath << std::endl;
-
-					// Final Read & Confirm Path
-					paths = PathPlanner::readAgentPaths(mergeFilePath);
-					//if (usePath1) {
-					//	paths = paths1;
-					//}
-					//else {
-					//	paths = paths1_alt;
-					//}
-
-					// Copy one to the current folder and generate other features
-					CopyFileFromAToB(mergeFilePath, integratedDir + "/" + std::to_string(totalRecordings) + "_" + std::to_string(current_speedo) + "_path_file_alt_plan.csv");
-					CopyFileFromAToB(mergeFilePath, "C:/Users/weicheng/Desktop/formal_dataset/" + systemVersion + "/" + std::to_string(numAgents) + "/" + testPattern + "/" + algorithmUsedd + "/" + std::to_string(particles_speed[0]) + "/" + roundNumm + "/pathFile_alt_plan.csv");
-
-					const char* executablePath = "C:/Users/weicheng/Desktop/AcousticPathPlanning/AcousticPathPlanning/x64/Debug/AcousticLevitation.exe ";
-					std::string argument1 = std::to_string(numAgents);  // Replace with actual arguments
-					std::string argument2 = roundNumm;
-					std::string argument3 = testPattern;
-					std::string argument4 = std::to_string(current_speedo);
-					//std::string argument5 = "alt";
-
-					// Construct the full command
-					std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4;
-
-					// Call the executable and wait for it to finish
-					int result = std::system(command.c_str());
-					// Check the result
-					if (result == 0) {
-						std::cout << "Executable finished successfully." << std::endl;
-					}
-					else {
-						std::cerr << "Executable finished with errors. Return code: " << result << std::endl;
-					}
-				}
-				else {
-					std::cout << "Part 1 selected path planner failed, period. Maybe try the other planner?" << std::endl;
-					path1plannerFailed = true;
-				}
-			}
-			else {
-				paths = existingPath;
-			}
-
 			//paths = setPaths(planner, initialPositions, targetPositions, size, testing_velocity, false, true);
+			paths = existingPath;
 			std::cout << "All particles speeds for running this experiment: ";
 			for (int j = 0;j < numAgents; j++) {
 				std::cout << particles_speed[j] << "  ";
@@ -2202,7 +1208,7 @@ void* solutionWriterThread(void* arg) {
 				}
 				ampFile.close();
 			}
-
+			
 			//savedPathFile << "C:/Users/weicheng/Desktop/OpenMPD_Demo/Output" << "/" << folderName << "/" << "agent-" << numPoints << "-maxV-" << velocity << "-round-" << runningTimes << "failed-pathFile.csv";
 			//PathPlanner::saveAgentPaths(savedPathFile.str(), paths);
 
@@ -2236,26 +1242,11 @@ void* solutionWriterThread(void* arg) {
 			}
 
 			currTime = 0;
-			if (goToTestingPos_2d && path1plannerFailed) {
-				std::cout << "Path Planning Failed, Try again by using different location." << std::endl;
-				turnTransducersOff = true;
-				path1plannerFailed = false;
-			}
-			else {
-				moving = true;
-				startTracking = true;
-				finished = false;
-				afterPickUpExperiment = false;
-			}
-
+			moving = true;
+			startTracking = true;
+			finished = false;
+			afterPickUpExperiment = false;
 			goToTestingPos = false;
-			if (goToTestingPos_2d) {
-				glm::vec3 boundaryMin(-0.06f, -0.06f, centreHeight - 0.06f);
-				glm::vec3 boundaryMax(+0.06f, +0.06f, centreHeight + 0.06f);
-				planner.setBoundary(boundaryMin, boundaryMax);
-				glm::vec3 size(0.009, 0.009, 0.9);
-				goToTestingPos_2d = false;
-			}
 		}
 
 		if (writingToFile) {
@@ -2309,8 +1300,8 @@ void* solutionWriterThread(void* arg) {
 		if (manualSpeedIncrease) {
 			manualSpeedIncrease = false;
 
-			std::cout << "Manual Velocity Increment by 0.01" << std::endl;
-			current_speedo += 0.01f;
+			std::cout << "Manual Velocity Increment by 0.05" << std::endl;
+			current_speedo += 0.05f;
 
 			particles_speed.clear();
 			for (int i = 0; i < numAgents; i++) {
@@ -2348,7 +1339,6 @@ void* solutionWriterThread(void* arg) {
 			std::string argument2 = roundNumm;
 			std::string argument3 = testPattern;
 			std::string argument4 = std::to_string(particles_speed[0]);
-			//std::string argument5 = "full";
 
 			// Construct the full command
 			std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4;
@@ -2367,8 +1357,8 @@ void* solutionWriterThread(void* arg) {
 		if (manualSpeedReduction) {
 			manualSpeedReduction = false;
 
-			std::cout << "Manual Velocity Reduction by 0.01" << std::endl;
-			current_speedo -= 0.01f;
+			std::cout << "Manual Velocity Reduction by 0.05" << std::endl;
+			current_speedo -= 0.05f;
 
 			particles_speed.clear();
 			for (int i = 0; i < numAgents; i++) {
@@ -2406,7 +1396,6 @@ void* solutionWriterThread(void* arg) {
 			std::string argument2 = roundNumm;
 			std::string argument3 = testPattern;
 			std::string argument4 = std::to_string(particles_speed[0]);
-			//std::string argument5 = "full";
 
 			// Construct the full command
 			std::string command = executablePath + argument1 + " " + argument2 + " " + argument3 + " " + argument4;
@@ -2598,9 +1587,7 @@ void* solutionWriterThread(void* arg) {
 				// Sleep for 1 second
 				std::this_thread::sleep_for(std::chrono::seconds(1));
 
-				if (!guiManageMode) {
-					turnTransducersOff = true;
-				}
+				turnTransducersOff = true;
 
 				PositionFile.clear();
 
@@ -2633,7 +1620,7 @@ void* solutionWriterThread(void* arg) {
 
 						std::string exeName = "Motive.exe"; // Replace with your program's exe name
 						//std::string exePath = "C:/Program Files/OptiTrack/Motive/Motive.exe"; // Replace with the full path to the exe
-						std::string exePath = "C:/Users/weicheng/Desktop/formal_dataset/240702_cal/2408191147.cal";
+						std::string exePath = "C:/Users/weicheng/Desktop/formal_dataset/240702_cal/CalibrationResult 2024-07-16 4.cal";
 
 						if (!manualInputMode && !noCaptureMode) {
 							// Kill the process
@@ -2793,7 +1780,7 @@ void* solutionWriterThread(void* arg) {
 					}
 				}
 				else {
-					if (!manualMode && !guiManageMode) {
+					if (!manualMode) {
 						std::cout << "*** Data Incomplete or in Manual Mode ***" << std::endl;
 						std::cout << "Particle Drop Vector Size not correct due to incomplete data processing, please recollect the data." << std::endl;
 						logFile << "DATA INCOMPLETE/Manual Mode: Particle Drop Vector Size not correct due to incomplete data processing, please recollect the data. [DI]" << "\n";
@@ -3003,14 +1990,11 @@ void* solutionWriterThread(void* arg) {
 			}
 
 		}
-
+		// 5.4. Compute a hologram
 		GSPAT::Solution* solution;
-		if (!developmentMode) {
-			// 5.4. Compute a hologram
-			if (testMode) solution = solver->createSolution(numPoints, numGeometries, true, &(circlePath_data[pIndex]), &(ampBuffer[0]), mStarts, mEnds, GSPAT::RowMajorAlignment);
-			else solution = solver->createSolution(numPoints, numGeometries, true, &(posBuffer[0]), &(ampBuffer[0]), mStarts, mEnds, GSPAT::RowMajorAlignment);
-			solver->compute(solution);
-		}
+		if (testMode) solution = solver->createSolution(numPoints, numGeometries, true, &(circlePath_data[pIndex]), &(ampBuffer[0]), mStarts, mEnds, GSPAT::RowMajorAlignment);
+		else solution = solver->createSolution(numPoints, numGeometries, true, &(posBuffer[0]), &(ampBuffer[0]), mStarts, mEnds, GSPAT::RowMajorAlignment);
+		solver->compute(solution);
 		// 5.5. Pass the solution to the reader thread
 		pthread_mutex_lock(&mutex_solution_queue);
 		solutions.push_back(solution);
@@ -3082,125 +2066,119 @@ void StartProcess(const std::string& exePath) {
 	ShellExecute(NULL, "open", exePath.c_str(), NULL, NULL, SW_SHOWNORMAL);
 }
 
-void* performSystemInfoWriting(void* arg) {
+void checkAndReset() {
 	while (true) {
-		writeSystemInfoFile();
-		std::this_thread::sleep_for(std::chrono::seconds(10));
+		if (turbulance_generator) {
+			turbulance_generator = false;
+			std::cout << "Variable is true, waiting for 5 seconds..." << std::endl;
+			std::this_thread::sleep_for(std::chrono::seconds(5));
+			turnTransducersOff = true;
+			std::cout << "Variable is now false." << std::endl;
+			std::this_thread::sleep_for(std::chrono::seconds(3));
+			pickingup = true;
+		}
+		std::this_thread::sleep_for(std::chrono::seconds(1));
 	}
 }
 
 void main() {
+	//only for import discretizing function from AsierInho (V1)
+	AsierInho::AsierInhoBoard* disc = AsierInho::createAsierInho();
+	disc->connect(AsierInho::BensDesign, 999, 1000);    //15,21   82, 80
+	disc->disconnect();
+
+	//prepare message format for reading phase from files
+	unsigned char msg[1024];
+	memset(msg, 0, 1024 * sizeof(unsigned char));
+	msg[0] = 128; msg[25] = 128; msg[26] = 128; msg[34] = 128;
+	msg[512 + 0] = 128; msg[512 + 25] = 128; msg[512 + 26] = 128; msg[512 + 34] = 128;
+
+	float* readingPhaseBuffer, * readingAmplitudeBuffer;
+	int numReadingGeometries, numTransducers;
+
+	//STAGE 0: Initialize
+	float transducerPositions[512 * 3], transducerNormals[512 * 3], amplitudeAdjust[512];
+	int mappings[512], phaseDelays[512], numDiscreteLevels;
+	AsierInho_V2::RegisterPrintFuncs(print, print, print);
+	a = AsierInho_V2::createAsierInho();
+	while (1) {
+		try {
+			a->connect(999, 1000);  //3,23  21,15    2,4   82, 80  
+			break;
+		}
+		catch (...) {
+			printf("Boards initialization failed, please retry.\n");
+			std::this_thread::sleep_for(std::chrono::seconds(3));
+		}
+	}
+
+	//a->connect(3, 23);
+
+	for (int i = 0; i < 16; i++) a->updateMessage(msg);
+
+	a->readParameters(transducerPositions, transducerNormals, mappings, phaseDelays, amplitudeAdjust, &numDiscreteLevels);
+
+	if (simplyReadPhase)
+	{
+		readTransducerInfo(tranducerPhaseFile, numReadingGeometries, numTransducers, readingPhaseBuffer);
+		if (USE_AMPLITUDE) readTransducerInfo(tranducerPhaseFile, numReadingGeometries, numTransducers, readingAmplitudeBuffer);
+	}
+
+	unsigned char* messages_fromReading = new unsigned char[2 * numReadingGeometries * numTransducers];
+	unsigned char phases_disc[512], amplitudes_disc[512];
+	//discretize the phases and amplitudes
+	//printf("start discretization\n");
+	for (int g = 0; g < numReadingGeometries; g++) {
+		disc->discretizePhases(&(readingPhaseBuffer[g * numTransducers]), phases_disc);
+		//printf("discretize %d geometries \n", g + 1);
+		if (USE_AMPLITUDE) {
+			disc->discretizeAmplitudes(&(readingAmplitudeBuffer[g * numTransducers]), amplitudes_disc);
+			disc->correctPhasesShift(phases_disc, amplitudes_disc);
+		}
+		else {
+			// the amplitudes_disc array is filled with the value 64 for numTransducers * sizeof(unsigned char) bytes.
+			memset(amplitudes_disc, 64, numTransducers * sizeof(unsigned char));
+		}
+		//copying the phases_disc and amplitudes_disc arrays into the messages array and modifying some specific elements:
+		memcpy(&messages_fromReading[g * 2 * numTransducers + 0], &phases_disc[0], (numTransducers / 2) * sizeof(unsigned char));
+		memcpy(&messages_fromReading[g * 2 * numTransducers + numTransducers / 2], &amplitudes_disc[0], (numTransducers / 2) * sizeof(unsigned char));
+		messages_fromReading[g * 2 * numTransducers + 0] += 128;
+		memcpy(&messages_fromReading[g * 2 * numTransducers + numTransducers], &phases_disc[numTransducers / 2], (numTransducers / 2) * sizeof(unsigned char));
+		memcpy(&messages_fromReading[g * 2 * numTransducers + 3 * numTransducers / 2], &amplitudes_disc[numTransducers / 2], (numTransducers / 2) * sizeof(unsigned char));
+		messages_fromReading[g * 2 * numTransducers + numTransducers] += 128;
+	}
+	//printf("Got messages_fromReadingFiles after discretization\n");
+
+
+	//STAGE 1: Initialize the solver
 	GSPAT::Solver* solver;
-	if (!developmentMode) {
-		//only for import discretizing function from AsierInho (V1)
-		AsierInho::AsierInhoBoard* disc = AsierInho::createAsierInho();
-		disc->connect(AsierInho::BensDesign, 999, 1000);    //15,21   82, 80
-		disc->disconnect();
-
-		//prepare message format for reading phase from files
-		unsigned char msg[1024];
-		memset(msg, 0, 1024 * sizeof(unsigned char));
-		msg[0] = 128; msg[25] = 128; msg[26] = 128; msg[34] = 128;
-		msg[512 + 0] = 128; msg[512 + 25] = 128; msg[512 + 26] = 128; msg[512 + 34] = 128;
-
-		float* readingPhaseBuffer, * readingAmplitudeBuffer;
-		int numReadingGeometries, numTransducers;
-
-		//STAGE 0: Initialize
-		float transducerPositions[512 * 3], transducerNormals[512 * 3], amplitudeAdjust[512];
-		int mappings[512], phaseDelays[512], numDiscreteLevels;
-		AsierInho_V2::RegisterPrintFuncs(print, print, print);
-		a = AsierInho_V2::createAsierInho();
-		while (1) {
-			try {
-				a->connect(999, 1000);  //3,23  21,15    2,4   82, 80  
-				break;
-			}
-			catch (...) {
-				printf("Boards initialization failed, please retry.\n");
-				std::this_thread::sleep_for(std::chrono::seconds(3));
-			}
-		}
-
-		//a->connect(3, 23);
-
-		for (int i = 0; i < 16; i++) a->updateMessage(msg);
-
-		a->readParameters(transducerPositions, transducerNormals, mappings, phaseDelays, amplitudeAdjust, &numDiscreteLevels);
-
-		if (simplyReadPhase)
-		{
-			readTransducerInfo(tranducerPhaseFile, numReadingGeometries, numTransducers, readingPhaseBuffer);
-			if (USE_AMPLITUDE) readTransducerInfo(tranducerPhaseFile, numReadingGeometries, numTransducers, readingAmplitudeBuffer);
-		}
-
-		unsigned char* messages_fromReading = new unsigned char[2 * numReadingGeometries * numTransducers];
-		unsigned char phases_disc[512], amplitudes_disc[512];
-		//discretize the phases and amplitudes
-		//printf("start discretization\n");
-		for (int g = 0; g < numReadingGeometries; g++) {
-			disc->discretizePhases(&(readingPhaseBuffer[g * numTransducers]), phases_disc);
-			//printf("discretize %d geometries \n", g + 1);
-			if (USE_AMPLITUDE) {
-				disc->discretizeAmplitudes(&(readingAmplitudeBuffer[g * numTransducers]), amplitudes_disc);
-				disc->correctPhasesShift(phases_disc, amplitudes_disc);
-			}
-			else {
-				// the amplitudes_disc array is filled with the value 64 for numTransducers * sizeof(unsigned char) bytes.
-				memset(amplitudes_disc, 64, numTransducers * sizeof(unsigned char));
-			}
-			//copying the phases_disc and amplitudes_disc arrays into the messages array and modifying some specific elements:
-			memcpy(&messages_fromReading[g * 2 * numTransducers + 0], &phases_disc[0], (numTransducers / 2) * sizeof(unsigned char));
-			memcpy(&messages_fromReading[g * 2 * numTransducers + numTransducers / 2], &amplitudes_disc[0], (numTransducers / 2) * sizeof(unsigned char));
-			messages_fromReading[g * 2 * numTransducers + 0] += 128;
-			memcpy(&messages_fromReading[g * 2 * numTransducers + numTransducers], &phases_disc[numTransducers / 2], (numTransducers / 2) * sizeof(unsigned char));
-			memcpy(&messages_fromReading[g * 2 * numTransducers + 3 * numTransducers / 2], &amplitudes_disc[numTransducers / 2], (numTransducers / 2) * sizeof(unsigned char));
-			messages_fromReading[g * 2 * numTransducers + numTransducers] += 128;
-		}
-		//printf("Got messages_fromReadingFiles after discretization\n");
-
-
-		//STAGE 1: Initialize the solver
-		switch (algorithmUsed) {
-		case GS_PAT:
-			GSPAT_V2::RegisterPrintFuncs(print, print, print);
-			solver = GSPAT_V2::createSolver(512);
-			break;
-		case TEMPORAL:
-			GSPAT_TS::RegisterPrintFuncs(print, print, print);
-			solver = GSPAT_TS::createSolver(512);
-			GSPAT_TS::setAlgorithm(solver, numIterations, transducerThreshold, pointThreshold);
-			break;
-		case NAIVE:
-			GSPAT_Naive::RegisterPrintFuncs(print, print, print);
-			solver = GSPAT_Naive::createSolver(512);
-			break;
-		case IBP:
-			GSPAT_IBP::RegisterPrintFuncs(print, print, print);
-			solver = GSPAT_IBP::createSolver(512);
-			break;
-		}
-		solver->setBoardConfig(transducerPositions, transducerNormals, mappings, phaseDelays, amplitudeAdjust, numDiscreteLevels);
-
-		//STAGE 2: Create the reader and writer threads and the concurrency control variables:
-		pthread_mutex_init(&solution_available, NULL);
-		pthread_mutex_lock(&solution_available);
-		pthread_mutex_init(&mutex_solution_queue, NULL);
-		pthread_create(&readerThread, NULL, &solutionReaderThread, ((void*)solver));
-		pthread_create(&writerThread, NULL, &solutionWriterThread, ((void*)solver));
+	switch (algorithmUsed) {
+	case GS_PAT:
+		GSPAT_V2::RegisterPrintFuncs(print, print, print);
+		solver = GSPAT_V2::createSolver(512);
+		break;
+	case TEMPORAL:
+		GSPAT_TS::RegisterPrintFuncs(print, print, print);
+		solver = GSPAT_TS::createSolver(512);
+		GSPAT_TS::setAlgorithm(solver, numIterations, transducerThreshold, pointThreshold);
+		break;
+	case NAIVE:
+		GSPAT_Naive::RegisterPrintFuncs(print, print, print);
+		solver = GSPAT_Naive::createSolver(512);
+		break;
+	case IBP:
+		GSPAT_IBP::RegisterPrintFuncs(print, print, print);
+		solver = GSPAT_IBP::createSolver(512);
+		break;
 	}
-	else {
-		pthread_mutex_init(&solution_available, NULL);
-		pthread_mutex_lock(&solution_available);
-		pthread_mutex_init(&mutex_solution_queue, NULL);
-		pthread_create(&readerThread, NULL, &solutionReaderThread, ((void*)solver));
-		pthread_create(&writerThread, NULL, &solutionWriterThread, ((void*)solver));
-	}
+	solver->setBoardConfig(transducerPositions, transducerNormals, mappings, phaseDelays, amplitudeAdjust, numDiscreteLevels);
 
-	if (developmentMode) {
-		noOptitrackMode = true;
-		std::cout << "***** DEVELOPMENT MODE ACTIVATED *****\n*** Under this mode, all Optitrack modules and PAT low level controls will be disabled ***" << std::endl;
-	}
+	//STAGE 2: Create the reader and writer threads and the concurrency control variables:
+	pthread_mutex_init(&solution_available, NULL);
+	pthread_mutex_lock(&solution_available);
+	pthread_mutex_init(&mutex_solution_queue, NULL);
+	pthread_create(&readerThread, NULL, &solutionReaderThread, ((void*)solver));
+	pthread_create(&writerThread, NULL, &solutionWriterThread, ((void*)solver));
 
 	//STAGE 3: Start the OptiTrack
 	if (!noOptitrackMode) {
@@ -3221,6 +2199,10 @@ void main() {
 		manualInputMode = true;
 		std::cout << "No Optitrack Mode Activated." << std::endl;
 	}
+
+	std::thread checkerThread(checkAndReset);
+	//checkerThread.join();
+	checkerThread.detach();
 
 	nameIntegration = std::to_string(numAgents) + "_" + testPattern + "_" + algorithmUsedd + "_" + std::to_string(current_speedo) + "_" + roundNumm + "_";
 	currentTime = getCurrentTimeString();
@@ -3243,207 +2225,7 @@ void main() {
 		previousUsableSolutionAmpOffsets.push_back(0);
 	}
 
-	bool gothroughBNTraining = false;
-	bool gothroughMLPTraining = false;
-
 	while (running) {
-		std::string instruction_txt = "C:/Users/weicheng/Desktop/ServerSampler/bin/instruction.txt";
-		int instruction_number = 0;
-		bool execute_instruction = false;
-		bool empty_flag = false;
-
-		if (exists_test(instruction_txt)) {
-			std::ifstream file(instruction_txt);
-
-			if (isFileEmpty(file)) {
-				empty_flag = true;
-			}
-			else {
-				empty_flag = false;
-				std::string firstLine;
-				std::getline(file, firstLine);
-				std::istringstream iss(firstLine);
-				int value;
-				if (iss >> value) {
-					//std::cout << "The first line is an integer: " << value << std::endl;
-					if (value == 0) {
-						guiManageMode = true;
-						std::cout << "Entering GUI Remote Management Mode..." << std::endl;
-						std::ofstream(feedback_txt) << "0";
-						value = 23; // Write system info
-					}
-					else if (value == 1) {
-						guiManageMode = false;
-						std::cout << "Exited GUI Remote Management Mode..." << std::endl;
-						std::ofstream(feedback_txt) << "0";
-						deleteFile("C:/Users/weicheng/Desktop/ServerSampler/bin/system_info.txt");
-					}
-					instruction_number = value;
-					execute_instruction = true;
-				}
-				else {
-					std::cout << "Instruction Malformed, message ignored." << std::endl;
-					std::ofstream(feedback_txt) << "2";
-				}
-			}
-
-			file.close();
-
-			if (!empty_flag) {
-				deleteFile(instruction_txt);
-			}
-		}
-
-		switch (instruction_number) {
-		case 2:
-			running = false; std::ofstream(feedback_txt) << "0"; break;
-		case 22:
-			running = false; gothroughBNTraining = true; std::ofstream(feedback_txt) << "0"; break;
-		case 222:
-			running = false; gothroughBNTraining = true; gothroughMLPTraining = true; std::ofstream(feedback_txt) << "0"; break;
-		case 3:
-			pickingup = true; std::ofstream(feedback_txt) << "0"; break;
-		case 4:
-			turnTransducersOff = true; std::ofstream(feedback_txt) << "0"; break;
-		case 5:
-			goToTestingPos = true;
-			std::ofstream(feedback_txt) << "0";
-			break;
-		case 6:
-			printf("*** Weicheng Simple Probability Analysis [FULL] ***\n");
-			simpleAnalysis = true;
-			simpleAnalysisFullMode = true;
-			std::ofstream(feedback_txt) << "0";
-			break;
-		case 7:
-			printf("*** Weicheng Simple Probability Analysis [FOR UNKNOWN DATA] ***\n");
-			simpleAnalysis = true;
-			simpleAnalysisFullMode = false;
-			std::ofstream(feedback_txt) << "0";
-			break;
-		case 8:
-			printf("*** Bayesian Standard Network Finder ***\n");
-			printf("--- WAIT ---\n");
-			bnAnalysis = true;
-			bnAnalysisFullMode = true;
-			std::ofstream(feedback_txt) << "0";
-			break;
-		case 9:
-			printf("*** Bayesian Simpler Network Finder ***\n");
-			printf("--- WAIT ---\n");
-			bnAnalysis = true;
-			bnAnalysisFullMode = false;
-			std::ofstream(feedback_txt) << "0";
-			break;
-		case 10:
-			printf("*** MLP Finder ***\n");
-			mlpAnalysis = true;
-			std::ofstream(feedback_txt) << "0";
-			break;
-		case 11:
-			if (manualMode) {
-				binarySearchHigherLower = true;
-				std::ofstream(feedback_txt) << "0";
-			}
-			else {
-				std::ofstream(feedback_txt) << "2";
-			}
-			break;
-		case 12:
-			if (manualMode) {
-				binarySearchLowerUpper = true;
-				std::ofstream(feedback_txt) << "0";
-			}
-			else {
-				std::ofstream(feedback_txt) << "2";
-			}
-			break;
-		case 13:
-			if (!noOptitrackMode) {
-				manualInputMode = !manualInputMode;
-				std::cout << "Manual Input Mode now is: " << manualInputMode << std::endl;
-				std::ofstream(feedback_txt) << "0";
-			}
-			else {
-				std::ofstream(feedback_txt) << "2";
-			}
-			break;
-		case 14:
-			if (!noOptitrackMode) {
-				manualDataCollectionMode = !manualDataCollectionMode;
-				manualInputMode = !manualInputMode;
-				std::cout << "Manual Data Collection Mode now is: " << manualDataCollectionMode << std::endl;
-				std::cout << "Manual Input Mode now is: " << manualInputMode << std::endl;
-				std::ofstream(feedback_txt) << "0";
-			}
-			else {
-				std::ofstream(feedback_txt) << "2";
-			}
-			break;
-		case 15:
-			for (int i = 0; i < numAgents; i++) {
-				ampOffsets[i] += 1000;
-			}
-			std::ofstream(amp_txt) << 16000 + ampOffsets[0];
-			std::cout << "Amp Offset Added by 1000, now is " << ampOffsets[0] << ", total " << 16000 + ampOffsets[0] << std::endl;
-			std::ofstream(feedback_txt) << "0";
-			break;
-		case 16:
-			for (int i = 0; i < numAgents; i++) {
-				ampOffsets[i] -= 1000;
-			}
-			std::ofstream(amp_txt) << 16000 + ampOffsets[0];
-			std::cout << "Amp Offset Reduced by 1000, now is " << ampOffsets[0] << ", total " << 16000 + ampOffsets[0] << std::endl;
-			std::ofstream(feedback_txt) << "0";
-			break;
-		case 17:
-			for (int i = 0; i < numAgents; i++) {
-				ampOffsets[i] += 100;
-			}
-			std::ofstream(amp_txt) << 16000 + ampOffsets[0];
-			std::cout << "Amp Offset Added by 100, now is " << ampOffsets[0] << ", total " << 16000 + ampOffsets[0] << std::endl;
-			std::ofstream(feedback_txt) << "0";
-			break;
-		case 18:
-			for (int i = 0; i < numAgents; i++) {
-				ampOffsets[i] -= 100;
-			}
-			std::ofstream(amp_txt) << 16000 + ampOffsets[0];
-			std::cout << "Amp Offset Reduced by 100, now is " << ampOffsets[0] << ", total " << 16000 + ampOffsets[0] << std::endl;
-			std::ofstream(feedback_txt) << "0";
-			break;
-		case 19:
-			manualSpeedReduction = true;
-			std::ofstream(feedback_txt) << "0";
-			break;
-		case 20:
-			manualSpeedIncrease = true;
-			std::ofstream(feedback_txt) << "0";
-			break;
-		case 21:
-			if (!noOptitrackMode) {
-				noCaptureMode = !noCaptureMode;
-				std::cout << "No Capture Mode Switch, if enabled, observe the particle movements manually without cameras." << " Status: " << noCaptureMode << std::endl;
-				std::ofstream(feedback_txt) << "0";
-			}
-			else {
-				std::ofstream(feedback_txt) << "2";
-			}
-			break;
-		case 23:
-			// System state reporting request
-			writeSystemInfoFile();
-			break;
-		default:
-			break;
-		}
-		
-		if (instruction_number != 0) {
-			instruction_number = 0;
-		}
-
-		writeSystemInfoFile();
-
 		if (_kbhit()) {
 			switch (_getch()) {
 			case 'z':
@@ -3468,17 +2250,11 @@ void main() {
 				//	//updateGeometries_byReading();
 				//	break;
 			case '3':
+				// shall I use this argument?
+				//existingPathFile.str(""); //renew the string
+				//++runningTimes;
+				printf("Current runningTimes %d\n", runningTimes);
 				goToTestingPos = true;
-				break;
-			case 'k':
-				printf("*** Weicheng Simple Probability Analysis [FULL] ***\n");
-				simpleAnalysis = true;
-				simpleAnalysisFullMode = true;
-				break;
-			case 'j':
-				printf("*** Weicheng Simple Probability Analysis [FOR UNKNOWN DATA] ***\n");
-				simpleAnalysis = true;
-				simpleAnalysisFullMode = false;
 				break;
 			case 'b':
 				printf("*** Bayesian Standard Network Finder ***\n");
@@ -3493,18 +2269,18 @@ void main() {
 				bnAnalysisFullMode = false;
 				break;
 			case 'q':
-				printf("*** MLP Finder ***\n");
-				mlpAnalysis = true;
+				printf("*** LSTM Finder ***\n");
+				lstmAnalysis = true;
 				break;
 			case 'l':
-				//if (manualMode) {
+				if (manualMode) {
 					binarySearchHigherLower = true;
-				//}
+				}
 				break;
 			case 'h':
-				//if (manualMode) {
+				if (manualMode) {
 					binarySearchLowerUpper = true;
-				//}
+				}
 				break;
 			case 'i':
 				if (!noOptitrackMode) {
@@ -3556,17 +2332,22 @@ void main() {
 					std::cout << "No Capture Mode Switch, if enabled, observe the particle movements manually without cameras." << " Status: " << noCaptureMode << std::endl;
 				}
 				break;
-			case 'g':
-				std::cout << "Path Planning This Path in 2D..." << std::endl;
-				pickingup_2d = true;
-				break;
-			case 'f':
-				goToTestingPos_2d = true;
-				break;
-			case 't':
-				usePath1 = !usePath1;
-				std::cout << "Switched Path Planner Mode to: " << usePath1 << ". (1 uses S2M2, 0 uses CBS)" << std::endl;
-				break;
+				//case 'w':
+				//	writingToFile = true; break;
+					//case 'a':
+					//	testLowVelocity = true; break;
+					//case 's':
+					//	testMediumVelocity = true; break;
+					//case 'd':
+					//	testHighVelocity = true; break;
+					//case 'f':
+					//	LogFailed = true;
+					//	printf("Failed at test %d\n", runningTimes);
+					//	break;
+					//case 'b':
+					//	LogSuccess = true; 
+					//	printf("Succeeded at test %d\n", runningTimes);
+					//	break;
 			default:
 				break;
 			}
@@ -3575,17 +2356,8 @@ void main() {
 	}
 
 	std::string addResultToBN = "";
-	if (!guiManageMode) {
-		std::cout << "Do you want to add this batch of result as evidence for training the Bayesian Network? Type 'y' or 'yes' to add.\n";
-		std::cin >> addResultToBN;
-	}
-	else {
-		if (gothroughBNTraining) {
-			addResultToBN = "y";
-		}
-	}
-
-	bool BNTrained = false;
+	std::cout << "Do you want to add this batch of result as evidence for training the Bayesian Network? Type 'y' or 'yes' to add.\n";
+	std::cin >> addResultToBN;
 
 	if (addResultToBN == "y" || addResultToBN == "yes") {
 		// Open file in append mode
@@ -3640,7 +2412,6 @@ void main() {
 				// Check the result
 				if (result == 0) {
 					std::cout << "BN simple model retrain finished successfully." << std::endl;
-					BNTrained = true;
 				}
 				else {
 					std::cerr << "BN simple model retrain finished with errors. Return code: " << result << std::endl;
@@ -3655,51 +2426,11 @@ void main() {
 		}
 	}
 
-	if (BNTrained) {
-		std::string addResultToMLP = "";
-		if (!guiManageMode) {
-			std::cout << "Do you also want to retrain the Multi-Layer Perceptron (MLP) model (Dataset already updated by using previous BN evidence adder)? Type 'y' or 'yes' to add.\n";
-			std::cin >> addResultToMLP;
-		}
-		else {
-			if (gothroughMLPTraining) {
-				addResultToMLP = "y";
-			}
-		}
-
-		if (addResultToMLP == "y" || addResultToMLP == "yes") {
-			std::cout << "Please wait while model retraining...\n";
-
-			const char* executablePath3 = "python ";
-
-			std::string argument1 = "c:/Users/weicheng/Desktop/formal_dataset/mlp_backward.py";
-			std::string argument2 = "--numParticles " + std::to_string(numAgents);
-			std::string argument3 = "--data_file \"C:/Users/weicheng/Desktop/formal_dataset/training_data_alt_" + std::to_string(numAgents) + "_particles.txt\"";
-			std::string argument7 = "train";
-			std::string command = executablePath3 + argument1 + " " + argument2 + " " + argument3 + " " + argument7;
-
-			bool result = std::system(command.c_str());
-			bool result_success_flag = false;
-			// Check the result
-			if (result == 0) {
-				std::cout << "MLP Training finished successfully." << std::endl;
-				result_success_flag = true;
-			}
-			else {
-				std::cerr << "MLP Training finished with errors. Return code: " << result << std::endl;
-				logFile << "MLP Training finished with errors. Return code: " << result << "\n";
-			}
-
-		}
-	}
-
 	logFile.close();
 	Sleep(2000);
-	if (!developmentMode) {
-		a->disconnect();
-		delete a;
-		delete solver;
-	}
+	a->disconnect();
+	delete a;
+	delete solver;
 }
 
 void readTransducerInfo(std::string fileName, int& numGeometries, int& numTransducers, float*& phases) {
@@ -3754,10 +2485,8 @@ void updateGeometries(unsigned char* messages, int numGeometries, bool transduce
 		firstTime = false;
 	}
 	//Compute discrete phases for this update:
-	if (!developmentMode) {
-		if (transducersOff) a->turnTransducersOff();
-		else a->updateMessages(messages, numGeometries);
-	}
+	if (transducersOff) a->turnTransducersOff();
+	else a->updateMessages(messages, numGeometries);
 
 	//let's check the current time and wait until next update is due
 	do {
@@ -3779,6 +2508,40 @@ void updateGeometries(unsigned char* messages, int numGeometries, bool transduce
 		printf("Time Per computation = %f; Last Update: %f, UPS: %f\n", (secCurTime - secPrevTime) / 1000000.f, timeSinceLastUpdate / (float)(numGeometries), dynamicTargetUPS);
 		secPrevTime = secCurTime;
 	}
+}
+
+void updateGeometries_byReading() {
+	//// simply update the first geometry
+	//for (int i = 0; i < 16; i++) {
+	//	a->updateMessage(&messages_fromReading[0]);
+	//}
+
+	//printf("Press any key to move the particles\n");
+	//_getch();
+	//int updateRate = 100; // Hz
+	//DWORD waitingPeriod = 1000000 / updateRate;
+	//DWORD lastUpdate = microTimer::uGetTime();
+	//DWORD currentTime = lastUpdate;
+	//DWORD start = microTimer::uGetTime();
+	//for (int g = 0; g < numGeometries; g++) {
+	//	// wait a while 
+	//	do {
+	//		currentTime = microTimer::uGetTime();
+	//	} while (currentTime - lastUpdate < waitingPeriod);
+	//	// send messages to the boards
+	//	a->updateMessage(&messages_fromReading[2 * g * numTransducers]);
+	//	// get the current time
+	//	lastUpdate = microTimer::uGetTime();
+	//}
+	//DWORD end = microTimer::uGetTime();
+	//printf("Actual frame rate is %f Hz\n", numGeometries * 1000000.f / (end - start));
+
+	//a->disconnect();
+	//delete a;
+	//delete[] readingPhaseBuffer, messages_fromReading;
+	//if (USE_AMPLITUDE)
+	//	delete[] readingAmplitudeBuffer;
+
 }
 
 std::vector<AgentPath> setPaths(PathPlanner& planner, std::vector<glm::vec3> starts, std::vector<glm::vec3> targets, glm::vec3 size, std::vector<float> velocities, bool taskAssignment, bool targetConstraint) {
@@ -3847,8 +2610,8 @@ std::vector<glm::vec3> getDetectedPositions(BeadDetector& detector, int numPoint
 	static const int minThres = 0, maxThres = 180, thresStep = 1;
 	int threshold = minThres;
 	bool corrected = false;
-	//int maxTry = 999;
-	//int currentTry = 0;
+	int maxTry = 999;
+	int currentTry = 0;
 
 	std::vector<glm::vec3> detectedPositions(numPoints);
 	while (!corrected) {
@@ -3865,12 +2628,12 @@ std::vector<glm::vec3> getDetectedPositions(BeadDetector& detector, int numPoint
 			//	break;
 			//}
 			//else {
-			threshold = minThres;
-			//currentTry++;
-		//}
+				threshold = minThres;
+				//currentTry++;
+			//}
 		}
 		else {
-			threshold += thresStep;
+			threshold += thresStep; 
 		}
 	}
 	return detectedPositions;
